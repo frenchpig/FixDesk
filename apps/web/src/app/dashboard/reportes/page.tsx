@@ -6,6 +6,7 @@ import {
   AnimatedSection,
 } from '@/components/templates/AnimatedPage';
 import { Text } from '@/components/atoms/Text';
+import { Button } from '@/components/atoms/Button';
 import { ReportsFilters } from '@/components/organisms/ReportsFilters';
 import { ReportsKpiGrid } from '@/components/organisms/ReportsKpiGrid';
 import {
@@ -65,6 +66,7 @@ export default function ReportesPage() {
   const [metrics, setMetrics] = useState<ReportsMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -99,6 +101,24 @@ export default function ReportesPage() {
     setAppliedFilters(DEFAULT_FILTERS);
   }
 
+  async function handleExport(format: 'excel' | 'pdf') {
+    if (!token) return;
+    setExporting(format);
+    setError(null);
+    const query = buildQuery(appliedFilters);
+    try {
+      await api.download(
+        `/reports/export/${format}?${query}`,
+        token,
+        `fixdesk-reportes.${format === 'excel' ? 'xlsx' : 'pdf'}`,
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setExporting(null);
+    }
+  }
+
   const periodLabel = metrics
     ? `${new Date(metrics.period.from).toLocaleDateString('es-CL')} — ${new Date(metrics.period.to).toLocaleDateString('es-CL')}`
     : '';
@@ -106,13 +126,37 @@ export default function ReportesPage() {
   return (
     <AnimatedPage className="space-y-6">
       <AnimatedSection delay={1}>
-        <div className="space-y-1">
-          <Text variant="h2">Reportería y KPIs</Text>
-          <Text variant="muted">
-            Métricas operativas con filtros por período, área, personas y
-            estado.
-            {periodLabel && ` Período: ${periodLabel}.`}
-          </Text>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <Text variant="h2">Reportería y KPIs</Text>
+            <Text variant="muted">
+              Métricas operativas con filtros por período, área, personas y
+              estado.
+              {periodLabel && ` Período: ${periodLabel}.`}
+            </Text>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={!metrics || exporting !== null}
+              isLoading={exporting === 'excel'}
+              onClick={() => handleExport('excel')}
+            >
+              Excel
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={!metrics || exporting !== null}
+              isLoading={exporting === 'pdf'}
+              onClick={() => handleExport('pdf')}
+            >
+              PDF
+            </Button>
+          </div>
         </div>
       </AnimatedSection>
 

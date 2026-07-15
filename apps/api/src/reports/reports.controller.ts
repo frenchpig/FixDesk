@@ -1,5 +1,13 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Header,
+  Query,
+  Req,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { ReportQueryDto } from './dto/report-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -27,5 +35,44 @@ export class ReportsController {
   @ApiOperation({ summary: 'Opciones de filtros para reportes' })
   getFilterOptions(@Req() req: RequestWithUser) {
     return this.reportsService.getFilterOptions(req.user);
+  }
+
+  @Get('export/excel')
+  @ApiOperation({
+    summary: 'Exportar métricas a Excel (.xlsx) con formato de marca',
+  })
+  @ApiProduces(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  async exportExcel(
+    @Query() query: ReportQueryDto,
+    @Req() req: RequestWithUser,
+  ) {
+    const file = await this.reportsService.exportExcel(req.user, query);
+    return new StreamableFile(file.buffer, {
+      type: file.contentType,
+      disposition: `attachment; filename="${file.filename}"`,
+    });
+  }
+
+  @Get('export/pdf')
+  @ApiOperation({
+    summary: 'Exportar métricas a PDF con diseño de reporte',
+  })
+  @ApiProduces('application/pdf')
+  @Header('Content-Type', 'application/pdf')
+  async exportPdf(
+    @Query() query: ReportQueryDto,
+    @Req() req: RequestWithUser,
+  ) {
+    const file = await this.reportsService.exportPdf(req.user, query);
+    return new StreamableFile(file.buffer, {
+      type: file.contentType,
+      disposition: `attachment; filename="${file.filename}"`,
+    });
   }
 }

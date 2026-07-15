@@ -8,6 +8,10 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import type { ReportQueryDto } from './dto/report-query.dto';
+import {
+  buildReportsExcel,
+  buildReportsPdf,
+} from './reports-export.builder';
 
 const SLA_HOURS = 48;
 const OPEN_STATUSES: TicketStatus[] = [
@@ -258,6 +262,29 @@ export class ReportsService {
           .sort((a, b) => b.count - a.count),
         trends: this.buildTrends(trendTickets, dateFrom, dateTo),
       },
+    };
+  }
+
+  async exportExcel(user: JwtPayload, query: ReportQueryDto) {
+    const { data } = await this.getMetrics(user, query);
+    const buffer = await buildReportsExcel(data);
+    const stamp = new Date().toISOString().slice(0, 10);
+    return {
+      buffer,
+      filename: `fixdesk-reportes-${stamp}.xlsx`,
+      contentType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
+  }
+
+  async exportPdf(user: JwtPayload, query: ReportQueryDto) {
+    const { data } = await this.getMetrics(user, query);
+    const buffer = await buildReportsPdf(data);
+    const stamp = new Date().toISOString().slice(0, 10);
+    return {
+      buffer,
+      filename: `fixdesk-reportes-${stamp}.pdf`,
+      contentType: 'application/pdf',
     };
   }
 

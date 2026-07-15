@@ -38,6 +38,45 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+function filenameFromDisposition(header: string | null, fallback: string) {
+  if (!header) return fallback;
+  const match = /filename="?([^";]+)"?/i.exec(header);
+  return match?.[1] ?? fallback;
+}
+
+async function downloadBlob(
+  path: string,
+  token: string,
+  fallbackFilename: string,
+): Promise<void> {
+  const headers = new Headers();
+  headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await fetch(`${API_URL}${path}`, { method: 'GET', headers });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      res.status,
+      (body as { message?: string }).message ?? 'Error al descargar',
+    );
+  }
+
+  const blob = await res.blob();
+  const filename = filenameFromDisposition(
+    res.headers.get('Content-Disposition'),
+    fallbackFilename,
+  );
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T>(path: string, token?: string) =>
     request<T>(path, { method: 'GET', token }),
@@ -47,4 +86,7 @@ export const api = {
 
   patch: <T>(path: string, body: unknown, token?: string) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body), token }),
+
+  download: (path: string, token: string, fallbackFilename: string) =>
+    downloadBlob(path, token, fallbackFilename),
 };
