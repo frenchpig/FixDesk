@@ -2,7 +2,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
-  IsUrl,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -27,8 +27,13 @@ export class CreateTicketDto {
   @MaxLength(2000)
   description: string;
 
+  /** URL real o marcador `placeholder:<nombre-archivo>` (sin storage). */
   @IsOptional()
-  @IsUrl()
+  @IsString()
+  @MaxLength(500)
+  @Matches(/^(https?:\/\/\S+|placeholder:.+)$/i, {
+    message: 'photoUrl debe ser URL http(s) o placeholder:<archivo>',
+  })
   photoUrl?: string;
 
   @IsOptional()

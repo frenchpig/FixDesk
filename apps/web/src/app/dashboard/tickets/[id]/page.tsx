@@ -10,6 +10,7 @@ import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { TicketAttachmentPreview } from '@/components/molecules/TicketAttachmentPreview';
 import { TicketTimeline } from '@/components/organisms/TicketTimeline';
 import { TicketActions } from '@/components/organisms/TicketActions';
 import { TicketComments } from '@/components/organisms/TicketComments';
@@ -71,11 +72,17 @@ export default function DashboardTicketDetailPage() {
               </Card>
             </AnimatedSection>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            {ticket.photoUrl && (
               <AnimatedSection delay={2}>
+                <TicketAttachmentPreview photoUrl={ticket.photoUrl} />
+              </AnimatedSection>
+            )}
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <AnimatedSection delay={3}>
                 <TicketActions ticket={ticket} onUpdate={load} />
               </AnimatedSection>
-              <AnimatedSection delay={3}>
+              <AnimatedSection delay={4}>
                 <TicketComments
                   ticketId={ticket.id}
                   entries={history}
@@ -85,7 +92,7 @@ export default function DashboardTicketDetailPage() {
               </AnimatedSection>
             </div>
 
-            <AnimatedSection delay={4}>
+            <AnimatedSection delay={5}>
               <TicketTimeline entries={history} />
             </AnimatedSection>
           </AnimatedPage>

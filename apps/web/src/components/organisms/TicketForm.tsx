@@ -8,10 +8,15 @@ import { Input } from '@/components/atoms/Input';
 import { Textarea } from '@/components/atoms/Textarea';
 import { Select } from '@/components/atoms/Select';
 import { FormField } from '@/components/molecules/FormField';
+import { PhotoAttachmentField } from '@/components/molecules/PhotoAttachmentField';
 import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import {
+  simulateUploadDelay,
+  toPlaceholderPhotoUrl,
+} from '@/lib/photo-placeholder';
 import type { Ticket } from '@/types';
 
 const schema = z.object({
@@ -27,6 +32,7 @@ export function TicketForm() {
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,9 +60,15 @@ export function TicketForm() {
     setIsLoading(true);
 
     try {
+      let photoUrl: string | undefined;
+      if (photoFile) {
+        await simulateUploadDelay();
+        photoUrl = toPlaceholderPhotoUrl(photoFile.name);
+      }
+
       const res = await api.post<{ data: Ticket }>(
         '/tickets',
-        result.data,
+        { ...result.data, ...(photoUrl ? { photoUrl } : {}) },
         token ?? undefined,
       );
       router.push(`/mis-tickets/${res.data.id}`);
@@ -114,6 +126,22 @@ export function TicketForm() {
             hasError={!!errors.description}
           />
         </FormField>
+
+        <PhotoAttachmentField
+          filename={photoFile?.name ?? null}
+          error={errors.photo}
+          disabled={isLoading}
+          onSelect={setPhotoFile}
+          onError={(message) =>
+            setErrors((prev) => {
+              if (!message) {
+                const { photo: _, ...rest } = prev;
+                return rest;
+              }
+              return { ...prev, photo: message };
+            })
+          }
+        />
 
         {errors.form && (
           <Text variant="caption" className="text-danger">

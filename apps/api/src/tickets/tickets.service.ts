@@ -71,6 +71,19 @@ export class TicketsService {
       newStatus: TicketStatus.OPEN,
     });
 
+    if (dto.photoUrl) {
+      const filename = dto.photoUrl.startsWith('placeholder:')
+        ? decodeURIComponent(dto.photoUrl.slice('placeholder:'.length))
+        : dto.photoUrl;
+      await this.historyService.create({
+        ticketId: ticket.id,
+        userId: user.sub,
+        eventType: HistoryEventType.PHOTO_ADDED,
+        note: filename,
+        metadata: { photoUrl: dto.photoUrl, simulated: true },
+      });
+    }
+
     return { data: ticket };
   }
 

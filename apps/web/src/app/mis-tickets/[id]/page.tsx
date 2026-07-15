@@ -8,6 +8,7 @@ import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { TicketAttachmentPreview } from '@/components/molecules/TicketAttachmentPreview';
 import { TicketTimeline } from '@/components/organisms/TicketTimeline';
 import { TicketComments } from '@/components/organisms/TicketComments';
 import { api } from '@/lib/api';
@@ -63,6 +64,10 @@ export default function MisTicketDetailPage() {
             </Text>
             <Text variant="body">{ticket.description}</Text>
           </Card>
+
+          {ticket.photoUrl && (
+            <TicketAttachmentPreview photoUrl={ticket.photoUrl} />
+          )}
 
           <TicketComments
             ticketId={ticket.id}

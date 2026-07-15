@@ -18,6 +18,8 @@ function formatEvent(entry: TicketHistoryEntry) {
       return `${entry.user.name} asignó el ticket`;
     case 'NOTE_ADDED':
       return `${entry.user.name} agregó un comentario`;
+    case 'PHOTO_ADDED':
+      return `${entry.user.name} adjuntó una captura${entry.note ? `: ${entry.note}` : ''}`;
     default:
       return `${entry.user.name} registró un evento`;
   }
