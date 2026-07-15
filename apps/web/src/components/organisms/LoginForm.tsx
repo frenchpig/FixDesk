@@ -74,9 +74,17 @@ export function LoginForm() {
         </Button>
       </form>
 
-      <Text variant="caption" className="mt-6 text-center block">
-        Demo: tecnico@fixdesk.dev / fixdesk123
-      </Text>
+      <div className="mt-6 space-y-1 text-center">
+        <Text variant="caption" className="block font-medium text-muted">
+          Cuentas demo
+        </Text>
+        <Text variant="caption" className="block">
+          Usuario: usuario@fixdesk.dev / fixdesk123
+        </Text>
+        <Text variant="caption" className="block">
+          Técnico: tecnico@fixdesk.dev / fixdesk123
+        </Text>
+      </div>
     </Card>
   );
 }

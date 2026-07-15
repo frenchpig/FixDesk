@@ -1,8 +1,73 @@
+'use client';
+
 import { NavLink } from '@/components/organisms/AppHeader';
 import { Text } from '@/components/atoms/Text';
-import { LayoutDashboard, Ticket, PlusCircle, History, BarChart3 } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import type { Role } from '@/types';
+import {
+  LayoutDashboard,
+  Ticket,
+  PlusCircle,
+  History,
+  BarChart3,
+  type LucideIcon,
+} from 'lucide-react';
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  roles: Role[];
+  isActive?: (pathname: string) => boolean;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    href: '/dashboard',
+    label: 'Tablero',
+    icon: LayoutDashboard,
+    roles: ['TECHNICIAN', 'ADMIN'],
+    isActive: (p) =>
+      p === '/dashboard' || p.startsWith('/dashboard/tickets/'),
+  },
+  {
+    href: '/dashboard/historial',
+    label: 'Historial',
+    icon: History,
+    roles: ['TECHNICIAN', 'ADMIN'],
+    isActive: (p) => p.startsWith('/dashboard/historial'),
+  },
+  {
+    href: '/dashboard/reportes',
+    label: 'Reportes',
+    icon: BarChart3,
+    roles: ['TECHNICIAN', 'ADMIN'],
+    isActive: (p) => p.startsWith('/dashboard/reportes'),
+  },
+  {
+    href: '/mis-tickets',
+    label: 'Mis tickets',
+    icon: Ticket,
+    roles: ['USER'],
+    isActive: (p) =>
+      p === '/mis-tickets' || p.startsWith('/mis-tickets/'),
+  },
+  {
+    href: '/reportar',
+    label: 'Nuevo reporte',
+    icon: PlusCircle,
+    roles: ['USER', 'TECHNICIAN', 'ADMIN'],
+    isActive: (p) => p === '/reportar',
+  },
+];
 
 export function Sidebar() {
+  const { user } = useAuth();
+
+  if (!user) return null;
+
+  const items = NAV_ITEMS.filter((item) => item.roles.includes(user.role));
+
   return (
     <aside
       data-glass-surface
@@ -12,47 +77,14 @@ export function Sidebar() {
         Navegación
       </Text>
       <nav className="space-y-1">
-        <NavLink
-          href="/dashboard"
-          isActive={(p) =>
-            p === '/dashboard' || p.startsWith('/dashboard/tickets/')
-          }
-        >
-          <span className="flex items-center gap-2">
-            <LayoutDashboard size={16} />
-            Tablero
-          </span>
-        </NavLink>
-        <NavLink
-          href="/dashboard/historial"
-          isActive={(p) => p.startsWith('/dashboard/historial')}
-        >
-          <span className="flex items-center gap-2">
-            <History size={16} />
-            Historial
-          </span>
-        </NavLink>
-        <NavLink
-          href="/dashboard/reportes"
-          isActive={(p) => p.startsWith('/dashboard/reportes')}
-        >
-          <span className="flex items-center gap-2">
-            <BarChart3 size={16} />
-            Reportes
-          </span>
-        </NavLink>
-        <NavLink href="/reportar">
-          <span className="flex items-center gap-2">
-            <PlusCircle size={16} />
-            Nuevo reporte
-          </span>
-        </NavLink>
-        <NavLink href="/mis-tickets">
-          <span className="flex items-center gap-2">
-            <Ticket size={16} />
-            Mis tickets
-          </span>
-        </NavLink>
+        {items.map(({ href, label, icon: Icon, isActive }) => (
+          <NavLink key={href} href={href} isActive={isActive}>
+            <span className="flex items-center gap-2">
+              <Icon size={16} />
+              {label}
+            </span>
+          </NavLink>
+        ))}
       </nav>
     </aside>
   );

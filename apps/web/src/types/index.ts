@@ -22,6 +22,18 @@ export type HistoryEventType =
   | 'NOTE_ADDED'
   | 'PHOTO_ADDED';
 
+export type NotificationType = 'STATUS_CHANGED' | 'ASSIGNED' | 'NOTE_ADDED';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body?: string | null;
+  ticketId?: string | null;
+  readAt?: string | null;
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   email: string;

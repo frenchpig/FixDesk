@@ -42,6 +42,12 @@ enum HistoryEventType {
   PHOTO_ADDED
 }
 
+enum NotificationType {
+  STATUS_CHANGED
+  ASSIGNED
+  NOTE_ADDED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -56,6 +62,7 @@ model User {
   reportedTickets Ticket[]        @relation("Reporter")
   assignedTickets Ticket[]        @relation("Assignee")
   historyEntries  TicketHistory[]
+  notifications   Notification[]
 
   @@index([role])
   @@index([areaId])
@@ -94,7 +101,8 @@ model Ticket {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  history TicketHistory[]
+  history       TicketHistory[]
+  notifications Notification[]
 
   @@index([status])
   @@index([priority])
@@ -122,4 +130,20 @@ model TicketHistory {
 
   @@index([ticketId])
   @@index([createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String?
+  ticketId  String?
+  ticket    Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }

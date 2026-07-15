@@ -7,6 +7,7 @@ import { TicketsModule } from './tickets/tickets.module';
 import { HistoryModule } from './history/history.module';
 import { UsersModule } from './users/users.module';
 import { ReportsModule } from './reports/reports.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ReportsModule } from './reports/reports.module';
     HistoryModule,
     UsersModule,
     ReportsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
 })

@@ -14,6 +14,7 @@ import {
 } from './dto/update-ticket.dto';
 import {
   HistoryEventType,
+  NotificationType,
   Role,
   TicketStatus,
   type Prisma,
@@ -24,7 +25,16 @@ import {
   CATEGORY_AREA_MAP,
   isNoteRequiredForTransition,
 } from './ticket-transitions';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
+
+const STATUS_LABELS: Record<TicketStatus, string> = {
+  OPEN: 'Abierto',
+  IN_PROGRESS: 'En progreso',
+  PENDING: 'Pendiente',
+  RESOLVED: 'Resuelto',
+  CANCELLED: 'Cancelado',
+};
 
 interface ListTicketsQuery {
   page?: number;
@@ -43,6 +53,7 @@ export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly historyService: HistoryService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(dto: CreateTicketDto, user: JwtPayload) {
@@ -167,6 +178,17 @@ export class TicketsService {
       note: dto.note,
     });
 
+    await this.notificationsService.createForUsers(
+      [ticket.reporterId, ticket.assigneeId].filter(Boolean) as string[],
+      {
+        type: NotificationType.STATUS_CHANGED,
+        title: `Estado actualizado: «${updated.title}»`,
+        body: `${STATUS_LABELS[ticket.status]} → ${STATUS_LABELS[dto.status]}`,
+        ticketId: id,
+        actorId: user.sub,
+      },
+    );
+
     return { data: updated };
   }
 
@@ -188,6 +210,14 @@ export class TicketsService {
       metadata: { assigneeId },
     });
 
+    await this.notificationsService.createForUsers([assigneeId], {
+      type: NotificationType.ASSIGNED,
+      title: `Te asignaron el ticket «${updated.title}»`,
+      body: 'Revisa el detalle para continuar la atención.',
+      ticketId: id,
+      actorId: user.sub,
+    });
+
     return { data: updated };
   }
 
@@ -201,6 +231,17 @@ export class TicketsService {
       eventType: HistoryEventType.NOTE_ADDED,
       note: dto.note,
     });
+
+    await this.notificationsService.createForUsers(
+      [ticket.reporterId, ticket.assigneeId].filter(Boolean) as string[],
+      {
+        type: NotificationType.NOTE_ADDED,
+        title: `Nuevo comentario en «${ticket.title}»`,
+        body: dto.note.slice(0, 140),
+        ticketId: id,
+        actorId: user.sub,
+      },
+    );
 
     return { data: entry };
   }

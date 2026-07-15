@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Text } from '@/components/atoms/Text';
 import { SettingsMenu } from '@/components/organisms/SettingsMenu';
+import { NotificationsMenu } from '@/components/organisms/NotificationsMenu';
 import { Wrench } from 'lucide-react';
 import { useTheme } from '@/lib/theme/theme-provider';
 
@@ -29,7 +30,10 @@ export function AppHeader({ title }: AppHeaderProps) {
           </div>
         </div>
 
-        <SettingsMenu />
+        <div className="flex items-center gap-1">
+          <NotificationsMenu />
+          <SettingsMenu />
+        </div>
       </div>
     </header>
   );
