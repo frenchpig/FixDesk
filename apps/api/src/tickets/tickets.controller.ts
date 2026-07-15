@@ -9,6 +9,13 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import {
@@ -20,8 +27,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role, TicketCategory, TicketStatus } from '@prisma/client';
+import { SWAGGER_BEARER } from '../swagger';
 import type { RequestWithUser } from '../auth/types/request-with-user';
 
+@ApiTags('Tickets')
+@ApiBearerAuth(SWAGGER_BEARER)
 @Controller('tickets')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TicketsController {
@@ -29,11 +39,22 @@ export class TicketsController {
 
   @Post()
   @Roles(Role.USER, Role.TECHNICIAN, Role.ADMIN)
+  @ApiOperation({ summary: 'Crear ticket' })
   create(@Body() dto: CreateTicketDto, @Req() req: RequestWithUser) {
     return this.ticketsService.create(dto, req.user);
   }
 
   @Get()
+  @ApiOperation({ summary: 'Listar tickets (filtrado por rol)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'perPage', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false, enum: TicketStatus })
+  @ApiQuery({ name: 'priority', required: false })
+  @ApiQuery({ name: 'category', required: false, enum: TicketCategory })
+  @ApiQuery({ name: 'assigneeId', required: false })
+  @ApiQuery({ name: 'resolvedToday', required: false, type: Boolean })
+  @ApiQuery({ name: 'createdToday', required: false, type: Boolean })
+  @ApiQuery({ name: 'q', required: false, description: 'Búsqueda en título/descripción' })
   findAll(
     @Req() req: RequestWithUser,
     @Query('page') page?: string,
@@ -60,17 +81,23 @@ export class TicketsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Detalle de un ticket' })
+  @ApiParam({ name: 'id', description: 'ID del ticket' })
   findOne(@Param('id') id: string, @Req() req: RequestWithUser) {
     return this.ticketsService.findOne(id, req.user);
   }
 
   @Get(':id/history')
+  @ApiOperation({ summary: 'Historial / audit log del ticket' })
+  @ApiParam({ name: 'id', description: 'ID del ticket' })
   getHistory(@Param('id') id: string, @Req() req: RequestWithUser) {
     return this.ticketsService.getHistory(id, req.user);
   }
 
   @Patch(':id/status')
   @Roles(Role.TECHNICIAN, Role.ADMIN)
+  @ApiOperation({ summary: 'Cambiar estado del ticket' })
+  @ApiParam({ name: 'id', description: 'ID del ticket' })
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateTicketStatusDto,
@@ -81,6 +108,8 @@ export class TicketsController {
 
   @Patch(':id/assign')
   @Roles(Role.TECHNICIAN, Role.ADMIN)
+  @ApiOperation({ summary: 'Asignar ticket a un técnico' })
+  @ApiParam({ name: 'id', description: 'ID del ticket' })
   assign(
     @Param('id') id: string,
     @Body() dto: AssignTicketDto,
@@ -91,6 +120,8 @@ export class TicketsController {
 
   @Post(':id/notes')
   @Roles(Role.TECHNICIAN, Role.ADMIN)
+  @ApiOperation({ summary: 'Agregar comentario / nota técnica' })
+  @ApiParam({ name: 'id', description: 'ID del ticket' })
   addNote(
     @Param('id') id: string,
     @Body() dto: AddNoteDto,
