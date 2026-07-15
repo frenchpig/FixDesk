@@ -54,7 +54,7 @@ export default function MisTicketsPage() {
               </AnimatedSection>
             )}
 
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {tickets.map((ticket, index) => (
                 <AnimatedSection
                   key={ticket.id}

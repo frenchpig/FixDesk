@@ -16,12 +16,12 @@ export function KanbanBoard({ tickets, basePath = '/dashboard/tickets' }: Kanban
       {KANBAN_COLUMNS.map((status) => {
         const columnTickets = tickets.filter((t) => t.status === status);
         return (
-          <div key={status} className="space-y-3">
+          <div key={status} className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <Text variant="h3">{STATUS_LABELS[status]}</Text>
               <Text variant="caption">{columnTickets.length}</Text>
             </div>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {columnTickets.map((ticket) => (
                 <TicketCard
                   key={ticket.id}

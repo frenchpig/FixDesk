@@ -23,7 +23,7 @@ function timeAgo(date: string) {
 
 export function TicketCard({ ticket, href }: TicketCardProps) {
   return (
-    <Link href={href}>
+    <Link href={href} className="block w-full">
       <Card className="cursor-pointer space-y-3">
         <div className="flex items-start justify-between gap-2">
           <Text variant="h3" className="line-clamp-2">
