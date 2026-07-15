@@ -36,7 +36,10 @@ function KpiCard({ label, value, hint, icon, accent = 'default' }: KpiCardProps)
   return (
     <Card className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <Text variant="caption" className="text-muted uppercase tracking-wide">
+        <Text
+          variant="caption"
+          className="text-muted tracking-wide normal-case"
+        >
           {label}
         </Text>
         <span className={ACCENT_STYLES[accent]}>{icon}</span>
@@ -45,7 +48,7 @@ function KpiCard({ label, value, hint, icon, accent = 'default' }: KpiCardProps)
         {value}
       </Text>
       {hint && (
-        <Text variant="caption" className="text-muted">
+        <Text variant="caption" className="text-muted normal-case">
           {hint}
         </Text>
       )}
@@ -95,9 +98,9 @@ export function ReportsKpiGrid({ kpis }: ReportsKpiGridProps) {
         icon={<Timer size={18} />}
       />
       <KpiCard
-        label={`SLA ≤ ${kpis.slaTargetHours}h`}
+        label={`SLA ≤ ${kpis.slaTargetHours} h`}
         value={formatPercent(kpis.slaComplianceRate)}
-        hint="Tickets resueltos dentro del objetivo"
+        hint={`Resueltos dentro del objetivo (${kpis.slaTargetHours} h)`}
         icon={<CheckCircle2 size={18} />}
         accent="success"
       />

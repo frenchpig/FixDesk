@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   HistoryEventType,
   Role,
@@ -12,8 +13,8 @@ import {
   buildReportsExcel,
   buildReportsPdf,
 } from './reports-export.builder';
+import { resolveSlaTargetHours } from '../config/sla.config';
 
-const SLA_HOURS = 48;
 const OPEN_STATUSES: TicketStatus[] = [
   TicketStatus.OPEN,
   TicketStatus.IN_PROGRESS,
@@ -22,7 +23,14 @@ const OPEN_STATUSES: TicketStatus[] = [
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
+
+  private get slaTargetHours(): number {
+    return resolveSlaTargetHours(this.config);
+  }
 
   async getMetrics(user: JwtPayload, query: ReportQueryDto) {
     const { dateFrom, dateTo } = this.resolveDateRange(query);
@@ -154,10 +162,12 @@ export class ReportsService {
         .map((t) => t.resolvedAt!.getTime() - t.createdAt.getTime()),
     );
 
+    const slaTargetHours = this.slaTargetHours;
+
     const slaCompliant = resolvedTickets.filter((t) => {
       if (!t.resolvedAt) return false;
       const hours = (t.resolvedAt.getTime() - t.createdAt.getTime()) / 3_600_000;
-      return hours <= SLA_HOURS;
+      return hours <= slaTargetHours;
     }).length;
 
     const slaComplianceRate =
@@ -229,7 +239,7 @@ export class ReportsService {
           avgResolutionHours,
           avgFirstResponseHours,
           slaComplianceRate,
-          slaTargetHours: SLA_HOURS,
+          slaTargetHours,
         },
         byStatus: byStatus.map((r) => ({
           status: r.status,
