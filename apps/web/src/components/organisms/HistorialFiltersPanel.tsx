@@ -12,6 +12,7 @@ import { Text } from '@/components/atoms/Text';
 import {
   CATEGORY_LABELS,
   PRIORITY_LABELS,
+  SEVERITY_LABELS,
   STATUS_LABELS,
 } from '@/lib/constants';
 import type {
@@ -19,6 +20,7 @@ import type {
   TicketCategory,
   TicketLabel,
   TicketPriority,
+  TicketSeverity,
   TicketStatus,
 } from '@/types';
 
@@ -114,6 +116,26 @@ export function HistorialFiltersPanel({
             {(Object.keys(PRIORITY_LABELS) as TicketPriority[]).map((p) => (
               <option key={p} value={p}>
                 {PRIORITY_LABELS[p]}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Text variant="caption" className="text-muted">
+            Severidad
+          </Text>
+          <Select
+            value={filters.severity}
+            onChange={(e) =>
+              set('severity', e.target.value as TicketSeverity | '')
+            }
+            aria-label="Severidad"
+          >
+            <option value="">Todas</option>
+            {(Object.keys(SEVERITY_LABELS) as TicketSeverity[]).map((s) => (
+              <option key={s} value={s}>
+                {SEVERITY_LABELS[s]}
               </option>
             ))}
           </Select>

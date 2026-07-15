@@ -8,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { TicketCategory, TicketPriority } from '@prisma/client';
+import { TicketCategory, TicketPriority, TicketSeverity } from '@prisma/client';
 
 export class CreateTicketDto {
   @IsString()
@@ -41,6 +41,10 @@ export class CreateTicketDto {
   @IsOptional()
   @IsEnum(TicketPriority)
   priority?: TicketPriority;
+
+  @IsOptional()
+  @IsEnum(TicketSeverity)
+  severity?: TicketSeverity;
 
   @IsOptional()
   @IsArray()

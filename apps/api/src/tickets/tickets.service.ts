@@ -18,6 +18,7 @@ import {
   NotificationType,
   Role,
   TicketPriority,
+  TicketSeverity,
   TicketStatus,
   type Prisma,
   type TicketCategory,
@@ -52,11 +53,19 @@ const PRIORITY_LABELS: Record<TicketPriority, string> = {
   HIGH: 'Alta',
 };
 
+const SEVERITY_LABELS: Record<TicketSeverity, string> = {
+  LOW: 'Baja',
+  MEDIUM: 'Media',
+  HIGH: 'Alta',
+  CRITICAL: 'Crítica',
+};
+
 interface ListTicketsQuery {
   page?: number;
   perPage?: number;
   status?: TicketStatus;
   priority?: string;
+  severity?: string;
   category?: TicketCategory;
   assigneeId?: string;
   resolvedToday?: boolean;
@@ -85,6 +94,9 @@ export class TicketsService {
     const labelIds = [...new Set(dto.labelIds ?? [])];
     await this.labelsService.assertLabelsExist(labelIds);
 
+    const canSetTriage =
+      user.role === Role.TECHNICIAN || user.role === Role.ADMIN;
+
     const ticket = await this.prisma.ticket.create({
       data: {
         title: dto.title,
@@ -92,7 +104,14 @@ export class TicketsService {
         category: dto.category,
         location: dto.location,
         photoUrl: dto.photoUrl,
-        priority: dto.priority,
+        ...(canSetTriage
+          ? {
+              ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
+              ...(dto.severity !== undefined
+                ? { severity: dto.severity }
+                : {}),
+            }
+          : {}),
         reporterId: user.sub,
         areaId: area?.id,
         ...(labelIds.length
@@ -209,6 +228,15 @@ export class TicketsService {
       metadata.priority = {
         from: PRIORITY_LABELS[ticket.priority],
         to: PRIORITY_LABELS[dto.priority],
+      };
+    }
+
+    if (dto.severity !== undefined && dto.severity !== ticket.severity) {
+      data.severity = dto.severity;
+      changeLabels.push('severidad');
+      metadata.severity = {
+        from: SEVERITY_LABELS[ticket.severity],
+        to: SEVERITY_LABELS[dto.severity],
       };
     }
 
@@ -389,10 +417,13 @@ export class TicketsService {
     if (user.role === Role.USER) {
       and.push({ reporterId: user.sub });
     } else if (user.role === Role.TECHNICIAN) {
+      // Alineado con assertTechnicianAccess: área propia, asignados a mí,
+      // o sin asignar (cola general, cualquier área).
       and.push({
         OR: [
           { assigneeId: user.sub },
           { area: { technicians: { some: { id: user.sub } } } },
+          { assigneeId: null },
         ],
       });
     }
@@ -401,6 +432,11 @@ export class TicketsService {
     if (query.priority) {
       and.push({
         priority: query.priority as Prisma.EnumTicketPriorityFilter,
+      });
+    }
+    if (query.severity) {
+      and.push({
+        severity: query.severity as Prisma.EnumTicketSeverityFilter,
       });
     }
     if (query.category) and.push({ category: query.category });
@@ -487,6 +523,7 @@ export class TicketsService {
       ticket.area?.technicians.some((t) => t.id === user.sub) ?? false;
     const assigned = ticket.assigneeId === user.sub;
     const isReporter = ticket.reporterId === user.sub;
+    const unassigned = ticket.assigneeId === null;
 
     if (user.role === Role.ADMIN) return;
 
@@ -495,7 +532,9 @@ export class TicketsService {
     }
 
     if (user.role === Role.TECHNICIAN) {
-      if (!inArea && !assigned && !isReporter) {
+      // Misma regla que el listado y assertTechnicianAccess:
+      // área, asignado a mí, reportado por mí, o sin asignar (cola).
+      if (!inArea && !assigned && !isReporter && !unassigned) {
         throw new ForbiddenException('No tienes permiso para ver este ticket');
       }
     }

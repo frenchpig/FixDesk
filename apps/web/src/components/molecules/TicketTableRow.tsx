@@ -5,6 +5,7 @@ import {
 } from '@/components/atoms/Table';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { SeverityBadge } from '@/components/molecules/SeverityBadge';
 import { LabelBadge } from '@/components/molecules/LabelBadge';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import { formatDate } from '@/utils/formatDate';
@@ -53,6 +54,9 @@ export function TicketTableRow({
       </TableCell>
       <TableCell>
         <PriorityBadge priority={ticket.priority} />
+      </TableCell>
+      <TableCell>
+        <SeverityBadge severity={ticket.severity} />
       </TableCell>
       <TableCell className="text-muted">
         {CATEGORY_LABELS[ticket.category]}

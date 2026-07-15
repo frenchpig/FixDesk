@@ -32,6 +32,7 @@ const DEFAULT_FILTERS: HistorialFilters = {
   q: '',
   status: '',
   priority: '',
+  severity: '',
   category: '',
   labelId: '',
   assigneeId: '',
@@ -52,6 +53,7 @@ function buildQuery(filters: HistorialFilters, page: number): string {
   if (filters.q.trim()) params.set('q', filters.q.trim());
   if (filters.status) params.set('status', filters.status);
   if (filters.priority) params.set('priority', filters.priority);
+  if (filters.severity) params.set('severity', filters.severity);
   if (filters.category) params.set('category', filters.category);
   if (filters.labelId) params.set('labelId', filters.labelId);
   if (filters.assigneeId) params.set('assigneeId', filters.assigneeId);

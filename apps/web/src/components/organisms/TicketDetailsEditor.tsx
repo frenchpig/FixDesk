@@ -14,7 +14,12 @@ import { Textarea } from '@/components/atoms/Textarea';
 import { FormField } from '@/components/molecules/FormField';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import type { Ticket, TicketCategory, TicketPriority } from '@/types';
+import type {
+  Ticket,
+  TicketCategory,
+  TicketPriority,
+  TicketSeverity,
+} from '@/types';
 
 const schema = z.object({
   title: z.string().min(5, 'Mínimo 5 caracteres').max(120),
@@ -22,6 +27,7 @@ const schema = z.object({
   location: z.string().min(3, 'Mínimo 3 caracteres').max(200),
   description: z.string().min(10, 'Mínimo 10 caracteres').max(2000),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
 });
 
 interface TicketDetailsEditorProps {
@@ -43,6 +49,7 @@ export function TicketDetailsEditor({
   const [category, setCategory] = useState<TicketCategory>(ticket.category);
   const [location, setLocation] = useState(ticket.location);
   const [priority, setPriority] = useState<TicketPriority>(ticket.priority);
+  const [severity, setSeverity] = useState<TicketSeverity>(ticket.severity);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -53,6 +60,7 @@ export function TicketDetailsEditor({
     setCategory(ticket.category);
     setLocation(ticket.location);
     setPriority(ticket.priority);
+    setSeverity(ticket.severity);
     setErrors({});
   }, [open, ticket]);
 
@@ -61,7 +69,8 @@ export function TicketDetailsEditor({
     description.trim() !== ticket.description ||
     category !== ticket.category ||
     location.trim() !== ticket.location ||
-    priority !== ticket.priority;
+    priority !== ticket.priority ||
+    severity !== ticket.severity;
 
   async function handleSave() {
     if (!token) return;
@@ -73,6 +82,7 @@ export function TicketDetailsEditor({
       category,
       location: location.trim(),
       priority,
+      severity,
     };
 
     const result = schema.safeParse(payload);
@@ -153,6 +163,25 @@ export function TicketDetailsEditor({
               <option value="LOW">Baja</option>
               <option value="MEDIUM">Media</option>
               <option value="HIGH">Alta</option>
+            </Select>
+          </FormField>
+
+          <FormField
+            label="Severidad (impacto)"
+            htmlFor="edit-severity"
+            error={errors.severity}
+          >
+            <Select
+              id="edit-severity"
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value as TicketSeverity)}
+              hasError={!!errors.severity}
+              disabled={isLoading}
+            >
+              <option value="LOW">Baja</option>
+              <option value="MEDIUM">Media</option>
+              <option value="HIGH">Alta</option>
+              <option value="CRITICAL">Crítica</option>
             </Select>
           </FormField>
         </div>

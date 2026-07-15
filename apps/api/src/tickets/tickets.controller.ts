@@ -28,7 +28,7 @@ import { SetTicketLabelsDto } from '../labels/dto/set-ticket-labels.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, TicketCategory, TicketStatus } from '@prisma/client';
+import { Role, TicketCategory, TicketSeverity, TicketStatus } from '@prisma/client';
 import { SWAGGER_BEARER } from '../swagger';
 import type { RequestWithUser } from '../auth/types/request-with-user';
 
@@ -52,6 +52,7 @@ export class TicketsController {
   @ApiQuery({ name: 'perPage', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, enum: TicketStatus })
   @ApiQuery({ name: 'priority', required: false })
+  @ApiQuery({ name: 'severity', required: false, enum: TicketSeverity })
   @ApiQuery({ name: 'category', required: false, enum: TicketCategory })
   @ApiQuery({
     name: 'assigneeId',
@@ -87,6 +88,7 @@ export class TicketsController {
     @Query('perPage') perPage?: string,
     @Query('status') status?: TicketStatus,
     @Query('priority') priority?: string,
+    @Query('severity') severity?: TicketSeverity,
     @Query('category') category?: TicketCategory,
     @Query('assigneeId') assigneeId?: string,
     @Query('resolvedToday') resolvedToday?: string,
@@ -102,6 +104,7 @@ export class TicketsController {
       perPage: perPage ? Number(perPage) : undefined,
       status,
       priority,
+      severity,
       category,
       assigneeId,
       resolvedToday: resolvedToday === 'true',
@@ -132,7 +135,7 @@ export class TicketsController {
   @Roles(Role.TECHNICIAN, Role.ADMIN)
   @ApiOperation({
     summary:
-      'Editar campos del ticket (título, descripción, categoría, ubicación, prioridad)',
+      'Editar campos del ticket (título, descripción, categoría, ubicación, prioridad, severidad)',
   })
   @ApiParam({ name: 'id', description: 'ID del ticket' })
   update(

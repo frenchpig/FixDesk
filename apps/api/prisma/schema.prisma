@@ -34,6 +34,14 @@ enum TicketPriority {
   HIGH
 }
 
+/** Impacto del incidente (distinto de prioridad operativa). */
+enum TicketSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 enum HistoryEventType {
   CREATED
   STATUS_CHANGED
@@ -86,6 +94,7 @@ model Ticket {
   category    TicketCategory
   status      TicketStatus   @default(OPEN)
   priority    TicketPriority @default(MEDIUM)
+  severity    TicketSeverity @default(MEDIUM)
   location    String
   photoUrl    String?
 
@@ -108,11 +117,13 @@ model Ticket {
 
   @@index([status])
   @@index([priority])
+  @@index([severity])
   @@index([category])
   @@index([reporterId])
   @@index([assigneeId])
   @@index([createdAt])
   @@index([status, priority])
+  @@index([status, severity])
 }
 
 model Label {

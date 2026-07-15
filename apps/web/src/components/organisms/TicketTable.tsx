@@ -40,6 +40,7 @@ export function TicketTable({
               <TableHead>Título</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Prioridad</TableHead>
+              <TableHead>Severidad</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Ubicación</TableHead>
               <TableHead>Reportado por</TableHead>

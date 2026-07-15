@@ -15,6 +15,9 @@ export type TicketStatus =
 
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 
+/** Impacto del incidente (distinto de prioridad operativa). */
+export type TicketSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
 export type HistoryEventType =
   | 'CREATED'
   | 'STATUS_CHANGED'
@@ -56,6 +59,7 @@ export interface Ticket {
   category: TicketCategory;
   status: TicketStatus;
   priority: TicketPriority;
+  severity: TicketSeverity;
   location: string;
   photoUrl?: string | null;
   reporter: { id: string; name: string; email?: string };
@@ -173,6 +177,7 @@ export interface HistorialFilters {
   q: string;
   status: TicketStatus | '';
   priority: TicketPriority | '';
+  severity: TicketSeverity | '';
   category: TicketCategory | '';
   labelId: string;
   assigneeId: string;

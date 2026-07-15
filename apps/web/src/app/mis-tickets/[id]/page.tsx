@@ -8,6 +8,7 @@ import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { SeverityBadge } from '@/components/molecules/SeverityBadge';
 import { LabelBadge } from '@/components/molecules/LabelBadge';
 import { TicketAttachmentPreview } from '@/components/molecules/TicketAttachmentPreview';
 import { TicketTimeline } from '@/components/organisms/TicketTimeline';
@@ -55,9 +56,10 @@ export default function MisTicketDetailPage() {
           <Card className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <Text variant="h2">{ticket.title}</Text>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <StatusBadge status={ticket.status} />
                 <PriorityBadge priority={ticket.priority} />
+                <SeverityBadge severity={ticket.severity} />
               </div>
             </div>
             <Text variant="muted">

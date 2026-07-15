@@ -1,4 +1,9 @@
-import type { TicketCategory, TicketPriority, TicketStatus } from '@/types';
+import type {
+  TicketCategory,
+  TicketPriority,
+  TicketSeverity,
+  TicketStatus,
+} from '@/types';
 
 export const CATEGORY_LABELS: Record<TicketCategory, string> = {
   HARDWARE: 'Hardware',
@@ -19,6 +24,14 @@ export const PRIORITY_LABELS: Record<TicketPriority, string> = {
   LOW: 'Baja',
   MEDIUM: 'Media',
   HIGH: 'Alta',
+};
+
+/** Impacto / alcance del incidente (distinto de prioridad). */
+export const SEVERITY_LABELS: Record<TicketSeverity, string> = {
+  LOW: 'Baja',
+  MEDIUM: 'Media',
+  HIGH: 'Alta',
+  CRITICAL: 'Crítica',
 };
 
 /** Espejo de apps/api/src/tickets/ticket-transitions.ts */

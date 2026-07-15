@@ -11,6 +11,7 @@ import { Button } from '@/components/atoms/Button';
 import { Text } from '@/components/atoms/Text';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { SeverityBadge } from '@/components/molecules/SeverityBadge';
 import { LabelBadge } from '@/components/molecules/LabelBadge';
 import { TicketAttachmentPreview } from '@/components/molecules/TicketAttachmentPreview';
 import { TicketTimeline } from '@/components/organisms/TicketTimeline';
@@ -67,6 +68,7 @@ export default function DashboardTicketDetailPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={ticket.status} />
                     <PriorityBadge priority={ticket.priority} />
+                    <SeverityBadge severity={ticket.severity} />
                     {canEditDetails && (
                       <Button
                         type="button"
