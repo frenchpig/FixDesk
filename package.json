@@ -1,0 +1,13 @@
+{
+  "name": "fixdesk",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "bun run --filter api start:dev & bun run --filter web dev",
+    "dev:api": "bun run --filter api start:dev",
+    "dev:web": "bun run --filter web dev",
+    "build": "bun run --filter api build && bun run --filter web build",
+    "db:migrate": "bun run --filter api db:migrate",
+    "db:seed": "bun run --filter api db:seed"
+  }
+}

@@ -1,0 +1,50 @@
+import type { ThemeDefinition } from './types';
+
+const base = {
+  spacing: '0.875rem',
+  transition: '150ms ease-out',
+  blur: '0px',
+  onPrimary: '#FFFFFF',
+  onDanger: '#FFFFFF',
+};
+
+export const githubTheme: ThemeDefinition = {
+  id: 'github',
+  name: 'GitHub Style',
+  description: 'Estética sobria y técnica, orientada a desarrolladores.',
+  inspiration: 'GitHub · GitHub Projects',
+  light: {
+    ...base,
+    background: '#FFFFFF',
+    surface: '#F6F8FA',
+    surfaceSecondary: '#FFFFFF',
+    primary: '#0969DA',
+    primaryGradient: '#0969DA',
+    accent: '#218BFF',
+    border: '#D1D9E0',
+    textPrimary: '#1F2328',
+    textSecondary: '#656D76',
+    success: '#1A7F37',
+    warning: '#9A6700',
+    danger: '#CF222E',
+    radius: '6px',
+    shadow: '0 1px 0 rgba(31, 35, 40, 0.04)',
+  },
+  dark: {
+    ...base,
+    background: '#0D1117',
+    surface: '#161B22',
+    surfaceSecondary: '#21262D',
+    primary: '#4493F8',
+    primaryGradient: '#4493F8',
+    accent: '#58A6FF',
+    border: '#3D444D',
+    textPrimary: '#F0F6FC',
+    textSecondary: '#9198A1',
+    success: '#3FB950',
+    warning: '#D29922',
+    danger: '#F85149',
+    radius: '6px',
+    shadow: '0 1px 0 rgba(0, 0, 0, 0.3)',
+  },
+};

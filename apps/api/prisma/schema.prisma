@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  TECHNICIAN
+  ADMIN
+}
+
+enum TicketCategory {
+  HARDWARE
+  NETWORK
+  INFRASTRUCTURE
+  ELECTRICAL
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING
+  RESOLVED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum HistoryEventType {
+  CREATED
+  STATUS_CHANGED
+  ASSIGNED
+  NOTE_ADDED
+  PHOTO_ADDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(USER)
+  areaId       String?
+  area         Area?    @relation(fields: [areaId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reportedTickets Ticket[]        @relation("Reporter")
+  assignedTickets Ticket[]        @relation("Assignee")
+  historyEntries  TicketHistory[]
+
+  @@index([role])
+  @@index([areaId])
+}
+
+model Area {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  technicians User[]
+  tickets     Ticket[]
+}
+
+model Ticket {
+  id          String         @id @default(cuid())
+  title       String
+  description String
+  category    TicketCategory
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  location    String
+  photoUrl    String?
+
+  reporterId String
+  reporter   User   @relation("Reporter", fields: [reporterId], references: [id])
+
+  assigneeId String?
+  assignee   User?  @relation("Assignee", fields: [assigneeId], references: [id])
+
+  areaId String?
+  area   Area?  @relation(fields: [areaId], references: [id])
+
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  history TicketHistory[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([reporterId])
+  @@index([assigneeId])
+  @@index([createdAt])
+  @@index([status, priority])
+}
+
+model TicketHistory {
+  id        String           @id @default(cuid())
+  ticketId  String
+  ticket    Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  eventType HistoryEventType
+  oldStatus TicketStatus?
+  newStatus TicketStatus?
+  note      String?
+  metadata  Json?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([createdAt])
+}

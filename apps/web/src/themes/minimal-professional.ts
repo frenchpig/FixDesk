@@ -1,0 +1,50 @@
+import type { ThemeDefinition } from './types';
+
+const base = {
+  spacing: '1rem',
+  transition: '200ms cubic-bezier(0.4, 0, 0.2, 1)',
+  blur: '0px',
+  onPrimary: '#FFFFFF',
+  onDanger: '#FFFFFF',
+};
+
+export const minimalProfessionalTheme: ThemeDefinition = {
+  id: 'minimal-professional',
+  name: 'Minimal Professional',
+  description: 'Interfaz limpia y elegante, inspirada en Notion y Linear.',
+  inspiration: 'Notion · Linear',
+  light: {
+    ...base,
+    background: '#FFFFFF',
+    surface: '#F7F7F5',
+    surfaceSecondary: '#FBFBFA',
+    primary: '#2383E2',
+    primaryGradient: '#2383E2',
+    accent: '#2383E2',
+    border: 'rgba(55, 53, 47, 0.09)',
+    textPrimary: '#37352F',
+    textSecondary: '#787774',
+    success: '#0F7B6C',
+    warning: '#D9730D',
+    danger: '#E03E3E',
+    radius: '6px',
+    shadow: '0 0 0 1px rgba(55, 53, 47, 0.06)',
+  },
+  dark: {
+    ...base,
+    background: '#191919',
+    surface: '#202020',
+    surfaceSecondary: '#262626',
+    primary: '#529CCA',
+    primaryGradient: '#529CCA',
+    accent: '#529CCA',
+    border: 'rgba(255, 255, 255, 0.094)',
+    textPrimary: 'rgba(255, 255, 255, 0.9)',
+    textSecondary: 'rgba(255, 255, 255, 0.443)',
+    success: '#4DAB9A',
+    warning: '#FFA344',
+    danger: '#FF7369',
+    radius: '6px',
+    shadow: '0 0 0 1px rgba(255, 255, 255, 0.06)',
+  },
+};
