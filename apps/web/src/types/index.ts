@@ -168,3 +168,15 @@ export interface ReportFilters {
   assigneeId: string;
   reporterId: string;
 }
+
+export interface HistorialFilters {
+  q: string;
+  status: TicketStatus | '';
+  priority: TicketPriority | '';
+  category: TicketCategory | '';
+  labelId: string;
+  assigneeId: string;
+  location: string;
+  dateFrom: string;
+  dateTo: string;
+}

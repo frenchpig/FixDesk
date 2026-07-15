@@ -53,11 +53,34 @@ export class TicketsController {
   @ApiQuery({ name: 'status', required: false, enum: TicketStatus })
   @ApiQuery({ name: 'priority', required: false })
   @ApiQuery({ name: 'category', required: false, enum: TicketCategory })
-  @ApiQuery({ name: 'assigneeId', required: false })
+  @ApiQuery({
+    name: 'assigneeId',
+    required: false,
+    description: 'ID de técnico o "me"',
+  })
   @ApiQuery({ name: 'resolvedToday', required: false, type: Boolean })
   @ApiQuery({ name: 'createdToday', required: false, type: Boolean })
-  @ApiQuery({ name: 'q', required: false, description: 'Búsqueda en título/descripción' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Búsqueda en título, descripción y ubicación',
+  })
   @ApiQuery({ name: 'labelId', required: false, description: 'Filtrar por etiqueta' })
+  @ApiQuery({
+    name: 'location',
+    required: false,
+    description: 'Filtrar por ubicación (contains)',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    required: false,
+    description: 'Creado desde (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    required: false,
+    description: 'Creado hasta (YYYY-MM-DD)',
+  })
   findAll(
     @Req() req: RequestWithUser,
     @Query('page') page?: string,
@@ -70,6 +93,9 @@ export class TicketsController {
     @Query('createdToday') createdToday?: string,
     @Query('q') q?: string,
     @Query('labelId') labelId?: string,
+    @Query('location') location?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     return this.ticketsService.findAll(req.user, {
       page: page ? Number(page) : undefined,
@@ -82,6 +108,9 @@ export class TicketsController {
       createdToday: createdToday === 'true',
       q,
       labelId,
+      location,
+      dateFrom,
+      dateTo,
     });
   }
 

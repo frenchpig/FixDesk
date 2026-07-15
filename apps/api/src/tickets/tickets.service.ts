@@ -63,6 +63,9 @@ interface ListTicketsQuery {
   createdToday?: boolean;
   q?: string;
   labelId?: string;
+  location?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 @Injectable()
@@ -381,52 +384,86 @@ export class TicketsService {
     user: JwtPayload,
     query: ListTicketsQuery,
   ): Prisma.TicketWhereInput {
-    const where: Prisma.TicketWhereInput = {};
+    const and: Prisma.TicketWhereInput[] = [];
 
     if (user.role === Role.USER) {
-      where.reporterId = user.sub;
+      and.push({ reporterId: user.sub });
     } else if (user.role === Role.TECHNICIAN) {
-      where.OR = [
-        { assigneeId: user.sub },
-        { area: { technicians: { some: { id: user.sub } } } },
-      ];
+      and.push({
+        OR: [
+          { assigneeId: user.sub },
+          { area: { technicians: { some: { id: user.sub } } } },
+        ],
+      });
     }
 
-    if (query.status) where.status = query.status;
+    if (query.status) and.push({ status: query.status });
     if (query.priority) {
-      where.priority = query.priority as Prisma.EnumTicketPriorityFilter;
+      and.push({
+        priority: query.priority as Prisma.EnumTicketPriorityFilter,
+      });
     }
-    if (query.category) where.category = query.category;
+    if (query.category) and.push({ category: query.category });
 
     if (query.assigneeId === 'me') {
-      where.assigneeId = user.sub;
+      and.push({ assigneeId: user.sub });
+    } else if (query.assigneeId?.trim()) {
+      and.push({ assigneeId: query.assigneeId.trim() });
     }
 
     if (query.resolvedToday) {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
-      where.status = TicketStatus.RESOLVED;
-      where.resolvedAt = { gte: start };
+      and.push({
+        status: TicketStatus.RESOLVED,
+        resolvedAt: { gte: start },
+      });
     }
 
     if (query.createdToday) {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
-      where.createdAt = { gte: start };
+      and.push({ createdAt: { gte: start } });
+    }
+
+    const createdAt: Prisma.DateTimeFilter = {};
+    if (query.dateFrom) {
+      createdAt.gte = new Date(`${query.dateFrom}T00:00:00.000Z`);
+    }
+    if (query.dateTo) {
+      createdAt.lte = new Date(`${query.dateTo}T23:59:59.999Z`);
+    }
+    if (Object.keys(createdAt).length > 0) {
+      and.push({ createdAt });
+    }
+
+    if (query.location?.trim()) {
+      and.push({
+        location: {
+          contains: query.location.trim(),
+          mode: 'insensitive',
+        },
+      });
     }
 
     if (query.q?.trim()) {
-      where.OR = [
-        { title: { contains: query.q, mode: 'insensitive' } },
-        { description: { contains: query.q, mode: 'insensitive' } },
-      ];
+      const q = query.q.trim();
+      and.push({
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { location: { contains: q, mode: 'insensitive' } },
+        ],
+      });
     }
 
     if (query.labelId) {
-      where.labels = { some: { id: query.labelId } };
+      and.push({ labels: { some: { id: query.labelId } } });
     }
 
-    return where;
+    if (and.length === 0) return {};
+    if (and.length === 1) return and[0]!;
+    return { AND: and };
   }
 
   private async getTicketOrThrow(id: string) {

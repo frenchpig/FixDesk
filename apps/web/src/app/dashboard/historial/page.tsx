@@ -1,25 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AnimatedPage,
   AnimatedSection,
 } from '@/components/templates/AnimatedPage';
 import { TicketTable } from '@/components/organisms/TicketTable';
-import { Button } from '@/components/atoms/Button';
-import { Input } from '@/components/atoms/Input';
-import { Select } from '@/components/atoms/Select';
+import { HistorialFiltersPanel } from '@/components/organisms/HistorialFiltersPanel';
 import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { PRIORITY_LABELS, STATUS_LABELS } from '@/lib/constants';
 import type {
+  HistorialFilters,
   PaginatedMeta,
   PaginatedResponse,
+  ReportFilterOptions,
   Ticket,
   TicketLabel,
-  TicketPriority,
-  TicketStatus,
 } from '@/types';
 
 const PER_PAGE = 20;
@@ -31,138 +28,152 @@ const EMPTY_META: PaginatedMeta = {
   totalPages: 0,
 };
 
+const DEFAULT_FILTERS: HistorialFilters = {
+  q: '',
+  status: '',
+  priority: '',
+  category: '',
+  labelId: '',
+  assigneeId: '',
+  location: '',
+  dateFrom: '',
+  dateTo: '',
+};
+
+function countActiveFilters(filters: HistorialFilters): number {
+  return Object.values(filters).filter((value) => value.trim() !== '').length;
+}
+
+function buildQuery(filters: HistorialFilters, page: number): string {
+  const params = new URLSearchParams({
+    page: String(page),
+    perPage: String(PER_PAGE),
+  });
+  if (filters.q.trim()) params.set('q', filters.q.trim());
+  if (filters.status) params.set('status', filters.status);
+  if (filters.priority) params.set('priority', filters.priority);
+  if (filters.category) params.set('category', filters.category);
+  if (filters.labelId) params.set('labelId', filters.labelId);
+  if (filters.assigneeId) params.set('assigneeId', filters.assigneeId);
+  if (filters.location.trim()) params.set('location', filters.location.trim());
+  if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+  if (filters.dateTo) params.set('dateTo', filters.dateTo);
+  return params.toString();
+}
+
 export default function HistorialPage() {
   const { token } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [meta, setMeta] = useState<PaginatedMeta>(EMPTY_META);
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState<TicketStatus | ''>('');
-  const [priority, setPriority] = useState<TicketPriority | ''>('');
-  const [labelId, setLabelId] = useState('');
+  const [draftFilters, setDraftFilters] =
+    useState<HistorialFilters>(DEFAULT_FILTERS);
+  const [appliedFilters, setAppliedFilters] =
+    useState<HistorialFilters>(DEFAULT_FILTERS);
   const [labels, setLabels] = useState<TicketLabel[]>([]);
-  const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const activeCount = useMemo(
+    () => countActiveFilters(appliedFilters),
+    [appliedFilters],
+  );
 
   useEffect(() => {
     if (!token) return;
-    api
-      .get<{ data: TicketLabel[] }>('/labels', token)
-      .then((res) => setLabels(res.data))
-      .catch(() => setLabels([]));
+    Promise.all([
+      api.get<{ data: TicketLabel[] }>('/labels', token),
+      api.get<{ data: ReportFilterOptions }>('/reports/filters', token),
+    ])
+      .then(([labelsRes, filtersRes]) => {
+        setLabels(labelsRes.data);
+        setTechnicians(
+          filtersRes.data.technicians.map((t) => ({
+            id: t.id,
+            name: t.name,
+          })),
+        );
+      })
+      .catch(() => {
+        setLabels([]);
+        setTechnicians([]);
+      });
   }, [token]);
 
-  useEffect(() => {
+  const loadTickets = useCallback(() => {
     if (!token) return;
-
-    const params = new URLSearchParams({
-      page: String(page),
-      perPage: String(PER_PAGE),
-    });
-    if (status) params.set('status', status);
-    if (priority) params.set('priority', priority);
-    if (labelId) params.set('labelId', labelId);
-    if (appliedSearch) params.set('q', appliedSearch);
-
     setIsLoading(true);
+    setError(null);
     api
-      .get<PaginatedResponse<Ticket>>(`/tickets?${params.toString()}`, token)
+      .get<PaginatedResponse<Ticket>>(
+        `/tickets?${buildQuery(appliedFilters, page)}`,
+        token,
+      )
       .then((res) => {
         setTickets(res.data);
         setMeta(res.meta);
       })
+      .catch((err) => {
+        setError((err as Error).message);
+        setTickets([]);
+        setMeta(EMPTY_META);
+      })
       .finally(() => setIsLoading(false));
-  }, [token, page, status, priority, labelId, appliedSearch]);
+  }, [token, appliedFilters, page]);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
+
+  function handleApply() {
     setPage(1);
-    setAppliedSearch(search.trim());
+    setAppliedFilters({ ...draftFilters });
   }
 
-  function handleStatusChange(value: string) {
+  function handleReset() {
+    setDraftFilters(DEFAULT_FILTERS);
+    setAppliedFilters(DEFAULT_FILTERS);
     setPage(1);
-    setStatus(value as TicketStatus | '');
-  }
-
-  function handlePriorityChange(value: string) {
-    setPage(1);
-    setPriority(value as TicketPriority | '');
-  }
-
-  function handleLabelChange(value: string) {
-    setPage(1);
-    setLabelId(value);
   }
 
   return (
     <AnimatedPage className="space-y-6">
-      <AnimatedSection delay={1} className="relative z-30">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <AnimatedSection delay={1}>
+        <div className="space-y-1">
           <Text variant="h2">Historial de tickets</Text>
-
-          <form
-            onSubmit={handleSearch}
-            className="flex flex-wrap items-center gap-2"
-          >
-            <Select
-              value={status}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="w-auto min-w-[10rem]"
-              aria-label="Filtrar por estado"
-            >
-              <option value="">Todos los estados</option>
-              {(Object.keys(STATUS_LABELS) as TicketStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABELS[s]}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              value={priority}
-              onChange={(e) => handlePriorityChange(e.target.value)}
-              className="w-auto min-w-[10rem]"
-              aria-label="Filtrar por prioridad"
-            >
-              <option value="">Todas las prioridades</option>
-              {(Object.keys(PRIORITY_LABELS) as TicketPriority[]).map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABELS[p]}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              value={labelId}
-              onChange={(e) => handleLabelChange(e.target.value)}
-              className="w-auto min-w-[10rem]"
-              aria-label="Filtrar por etiqueta"
-            >
-              <option value="">Todas las etiquetas</option>
-              {labels.map((label) => (
-                <option key={label.id} value={label.id}>
-                  {label.name}
-                </option>
-              ))}
-            </Select>
-
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar..."
-              className="w-48"
-              aria-label="Buscar tickets"
-            />
-
-            <Button type="submit" size="sm" variant="secondary">
-              Buscar
-            </Button>
-          </form>
+          <Text variant="muted">
+            Combina criterios (estado, prioridad, etiqueta, texto y más) para
+            encontrar tickets.
+            {activeCount > 0 &&
+              ` · ${meta.total} resultado${meta.total === 1 ? '' : 's'}`}
+          </Text>
         </div>
       </AnimatedSection>
 
-      <AnimatedSection delay={2} className="relative z-0">
+      <AnimatedSection delay={2}>
+        <HistorialFiltersPanel
+          filters={draftFilters}
+          labels={labels}
+          technicians={technicians}
+          onChange={setDraftFilters}
+          onApply={handleApply}
+          onReset={handleReset}
+          activeCount={activeCount}
+        />
+      </AnimatedSection>
+
+      {error && (
+        <AnimatedSection delay={3}>
+          <Text variant="caption" className="text-danger">
+            {error}
+          </Text>
+        </AnimatedSection>
+      )}
+
+      <AnimatedSection delay={3} className="relative z-0">
         {isLoading ? (
           <Text variant="muted">Cargando tickets...</Text>
         ) : (
