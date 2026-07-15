@@ -21,6 +21,7 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import {
   AddNoteDto,
   AssignTicketDto,
+  UpdateTicketDto,
   UpdateTicketStatusDto,
 } from './dto/update-ticket.dto';
 import { SetTicketLabelsDto } from '../labels/dto/set-ticket-labels.dto';
@@ -96,6 +97,21 @@ export class TicketsController {
   @ApiParam({ name: 'id', description: 'ID del ticket' })
   getHistory(@Param('id') id: string, @Req() req: RequestWithUser) {
     return this.ticketsService.getHistory(id, req.user);
+  }
+
+  @Patch(':id')
+  @Roles(Role.TECHNICIAN, Role.ADMIN)
+  @ApiOperation({
+    summary:
+      'Editar campos del ticket (título, descripción, categoría, ubicación, prioridad)',
+  })
+  @ApiParam({ name: 'id', description: 'ID del ticket' })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTicketDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.ticketsService.update(id, dto, req.user);
   }
 
   @Patch(':id/status')

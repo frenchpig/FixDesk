@@ -193,7 +193,8 @@
   overflow: hidden;
 }
 
-[data-theme='glassmorphism'] .overlay-surface.absolute {
+[data-theme='glassmorphism'] .overlay-surface.absolute,
+[data-theme='glassmorphism'] [data-modal-panel] {
   overflow: hidden;
   background-color: var(--glass-bg-floating) !important;
   backdrop-filter: blur(var(--glass-blur-floating)) saturate(180%);
@@ -203,8 +204,14 @@
     var(--token-shadow);
 }
 
+[data-theme='glassmorphism'] [data-modal-panel] {
+  position: relative;
+  isolation: isolate;
+}
+
 [data-theme='glassmorphism'] [data-glass-card]::before,
-[data-theme='glassmorphism'] .overlay-surface::before {
+[data-theme='glassmorphism'] .overlay-surface::before,
+[data-theme='glassmorphism'] [data-modal-panel]::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -215,13 +222,14 @@
 }
 
 /* Solo overlays: no forzar z-index en hijos de card (rompía Select/listbox) */
-[data-theme='glassmorphism'] .overlay-surface > * {
+[data-theme='glassmorphism'] .overlay-surface > *,
+[data-theme='glassmorphism'] [data-modal-panel] > * {
   position: relative;
   z-index: 1;
 }
 
 [data-theme='glassmorphism'] [data-glass-card]:hover,
-[data-theme='glassmorphism'] .overlay-surface:not(.absolute):hover {
+[data-theme='glassmorphism'] .overlay-surface:not(.absolute):not([data-modal-panel]):hover {
   background-color: var(--glass-bg-panel-hover) !important;
   backdrop-filter: blur(calc(var(--glass-blur-panel) + 2px)) saturate(180%);
   -webkit-backdrop-filter: blur(calc(var(--glass-blur-panel) + 2px)) saturate(180%);
@@ -306,7 +314,8 @@
   background-color: rgba(255, 255, 255, 0.12);
 }
 
-[data-performance-mode='true'] .overlay-surface.absolute {
+[data-performance-mode='true'] .overlay-surface.absolute,
+[data-performance-mode='true'] [data-modal-panel] {
   background-color: var(--glass-bg-floating) !important;
 }
 

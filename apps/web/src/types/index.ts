@@ -20,7 +20,8 @@ export type HistoryEventType =
   | 'STATUS_CHANGED'
   | 'ASSIGNED'
   | 'NOTE_ADDED'
-  | 'PHOTO_ADDED';
+  | 'PHOTO_ADDED'
+  | 'UPDATED';
 
 export type NotificationType = 'STATUS_CHANGED' | 'ASSIGNED' | 'NOTE_ADDED';
 

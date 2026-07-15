@@ -40,6 +40,7 @@ enum HistoryEventType {
   ASSIGNED
   NOTE_ADDED
   PHOTO_ADDED
+  UPDATED
 }
 
 enum NotificationType {

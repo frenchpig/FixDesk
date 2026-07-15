@@ -10,12 +10,14 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import {
   AddNoteDto,
   AssignTicketDto,
+  UpdateTicketDto,
   UpdateTicketStatusDto,
 } from './dto/update-ticket.dto';
 import {
   HistoryEventType,
   NotificationType,
   Role,
+  TicketPriority,
   TicketStatus,
   type Prisma,
   type TicketCategory,
@@ -35,6 +37,19 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
   PENDING: 'Pendiente',
   RESOLVED: 'Resuelto',
   CANCELLED: 'Cancelado',
+};
+
+const CATEGORY_LABELS: Record<TicketCategory, string> = {
+  HARDWARE: 'Hardware',
+  NETWORK: 'Redes',
+  INFRASTRUCTURE: 'Infraestructura',
+  ELECTRICAL: 'Eléctrico',
+};
+
+const PRIORITY_LABELS: Record<TicketPriority, string> = {
+  LOW: 'Baja',
+  MEDIUM: 'Media',
+  HIGH: 'Alta',
 };
 
 interface ListTicketsQuery {
@@ -148,6 +163,87 @@ export class TicketsService {
     }
 
     return { data: ticket };
+  }
+
+  async update(id: string, dto: UpdateTicketDto, user: JwtPayload) {
+    const ticket = await this.getTicketOrThrow(id);
+    this.assertTechnicianAccess(ticket, user);
+
+    const data: Prisma.TicketUpdateInput = {};
+    const changeLabels: string[] = [];
+    const metadata: Record<string, { from: string; to: string }> = {};
+
+    if (dto.title !== undefined && dto.title.trim() !== ticket.title) {
+      const next = dto.title.trim();
+      data.title = next;
+      changeLabels.push('título');
+      metadata.title = { from: ticket.title, to: next };
+    }
+
+    if (
+      dto.description !== undefined &&
+      dto.description.trim() !== ticket.description
+    ) {
+      const next = dto.description.trim();
+      data.description = next;
+      changeLabels.push('descripción');
+      metadata.description = {
+        from: ticket.description.slice(0, 80),
+        to: next.slice(0, 80),
+      };
+    }
+
+    if (dto.location !== undefined && dto.location.trim() !== ticket.location) {
+      const next = dto.location.trim();
+      data.location = next;
+      changeLabels.push('ubicación');
+      metadata.location = { from: ticket.location, to: next };
+    }
+
+    if (dto.priority !== undefined && dto.priority !== ticket.priority) {
+      data.priority = dto.priority;
+      changeLabels.push('prioridad');
+      metadata.priority = {
+        from: PRIORITY_LABELS[ticket.priority],
+        to: PRIORITY_LABELS[dto.priority],
+      };
+    }
+
+    if (dto.category !== undefined && dto.category !== ticket.category) {
+      data.category = dto.category;
+      changeLabels.push('categoría');
+      metadata.category = {
+        from: CATEGORY_LABELS[ticket.category],
+        to: CATEGORY_LABELS[dto.category],
+      };
+
+      const area = await this.prisma.area.findUnique({
+        where: { name: CATEGORY_AREA_MAP[dto.category] },
+      });
+      data.area = area
+        ? { connect: { id: area.id } }
+        : { disconnect: true };
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No hay cambios para guardar');
+    }
+
+    const updated = await this.prisma.ticket.update({
+      where: { id },
+      data,
+      include: this.ticketInclude(),
+    });
+
+    await this.historyService.create({
+      ticketId: id,
+      userId: user.sub,
+      eventType: HistoryEventType.UPDATED,
+      note: `Actualizó: ${changeLabels.join(', ')}`,
+      metadata,
+    });
+
+    return { data: updated };
   }
 
   async updateStatus(id: string, dto: UpdateTicketStatusDto, user: JwtPayload) {
