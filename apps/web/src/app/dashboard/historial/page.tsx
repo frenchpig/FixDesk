@@ -17,6 +17,7 @@ import type {
   PaginatedMeta,
   PaginatedResponse,
   Ticket,
+  TicketLabel,
   TicketPriority,
   TicketStatus,
 } from '@/types';
@@ -37,9 +38,19 @@ export default function HistorialPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<TicketStatus | ''>('');
   const [priority, setPriority] = useState<TicketPriority | ''>('');
+  const [labelId, setLabelId] = useState('');
+  const [labels, setLabels] = useState<TicketLabel[]>([]);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .get<{ data: TicketLabel[] }>('/labels', token)
+      .then((res) => setLabels(res.data))
+      .catch(() => setLabels([]));
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -50,6 +61,7 @@ export default function HistorialPage() {
     });
     if (status) params.set('status', status);
     if (priority) params.set('priority', priority);
+    if (labelId) params.set('labelId', labelId);
     if (appliedSearch) params.set('q', appliedSearch);
 
     setIsLoading(true);
@@ -60,7 +72,7 @@ export default function HistorialPage() {
         setMeta(res.meta);
       })
       .finally(() => setIsLoading(false));
-  }, [token, page, status, priority, appliedSearch]);
+  }, [token, page, status, priority, labelId, appliedSearch]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -76,6 +88,11 @@ export default function HistorialPage() {
   function handlePriorityChange(value: string) {
     setPage(1);
     setPriority(value as TicketPriority | '');
+  }
+
+  function handleLabelChange(value: string) {
+    setPage(1);
+    setLabelId(value);
   }
 
   return (
@@ -112,6 +129,20 @@ export default function HistorialPage() {
               {(Object.keys(PRIORITY_LABELS) as TicketPriority[]).map((p) => (
                 <option key={p} value={p}>
                   {PRIORITY_LABELS[p]}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              value={labelId}
+              onChange={(e) => handleLabelChange(e.target.value)}
+              className="w-auto min-w-[10rem]"
+              aria-label="Filtrar por etiqueta"
+            >
+              <option value="">Todas las etiquetas</option>
+              {labels.map((label) => (
+                <option key={label.id} value={label.id}>
+                  {label.name}
                 </option>
               ))}
             </Select>

@@ -23,6 +23,7 @@ import {
   AssignTicketDto,
   UpdateTicketStatusDto,
 } from './dto/update-ticket.dto';
+import { SetTicketLabelsDto } from '../labels/dto/set-ticket-labels.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -55,6 +56,7 @@ export class TicketsController {
   @ApiQuery({ name: 'resolvedToday', required: false, type: Boolean })
   @ApiQuery({ name: 'createdToday', required: false, type: Boolean })
   @ApiQuery({ name: 'q', required: false, description: 'Búsqueda en título/descripción' })
+  @ApiQuery({ name: 'labelId', required: false, description: 'Filtrar por etiqueta' })
   findAll(
     @Req() req: RequestWithUser,
     @Query('page') page?: string,
@@ -66,6 +68,7 @@ export class TicketsController {
     @Query('resolvedToday') resolvedToday?: string,
     @Query('createdToday') createdToday?: string,
     @Query('q') q?: string,
+    @Query('labelId') labelId?: string,
   ) {
     return this.ticketsService.findAll(req.user, {
       page: page ? Number(page) : undefined,
@@ -77,6 +80,7 @@ export class TicketsController {
       resolvedToday: resolvedToday === 'true',
       createdToday: createdToday === 'true',
       q,
+      labelId,
     });
   }
 
@@ -128,5 +132,17 @@ export class TicketsController {
     @Req() req: RequestWithUser,
   ) {
     return this.ticketsService.addNote(id, dto, req.user);
+  }
+
+  @Patch(':id/labels')
+  @Roles(Role.TECHNICIAN, Role.ADMIN)
+  @ApiOperation({ summary: 'Reemplazar etiquetas del ticket' })
+  @ApiParam({ name: 'id', description: 'ID del ticket' })
+  setLabels(
+    @Param('id') id: string,
+    @Body() dto: SetTicketLabelsDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.ticketsService.setLabels(id, dto.labelIds, req.user);
   }
 }

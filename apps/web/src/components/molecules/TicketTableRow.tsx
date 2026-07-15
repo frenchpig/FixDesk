@@ -5,6 +5,7 @@ import {
 } from '@/components/atoms/Table';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { LabelBadge } from '@/components/molecules/LabelBadge';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import { formatDate } from '@/utils/formatDate';
 import type { Ticket } from '@/types';
@@ -28,13 +29,24 @@ export function TicketTableRow({
           #{ticket.id.slice(-6)}
         </Link>
       </TableCell>
-      <TableCell className="max-w-xs truncate">
+      <TableCell className="max-w-xs">
         <Link
           href={`${basePath}/${ticket.id}`}
           className="hover:text-primary hover:underline"
         >
           {ticket.title}
         </Link>
+        {!!ticket.labels?.length && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {ticket.labels.slice(0, 2).map((label) => (
+              <LabelBadge
+                key={label.id}
+                name={label.name}
+                color={label.color}
+              />
+            ))}
+          </div>
+        )}
       </TableCell>
       <TableCell>
         <StatusBadge status={ticket.status} />

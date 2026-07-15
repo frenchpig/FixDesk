@@ -8,6 +8,7 @@ import { HistoryModule } from './history/history.module';
 import { UsersModule } from './users/users.module';
 import { ReportsModule } from './reports/reports.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { LabelsModule } from './labels/labels.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     UsersModule,
     ReportsModule,
     NotificationsModule,
+    LabelsModule,
   ],
   controllers: [AppController],
 })

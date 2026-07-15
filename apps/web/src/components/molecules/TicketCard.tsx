@@ -3,6 +3,7 @@ import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { LabelBadge } from '@/components/molecules/LabelBadge';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import { MapPin, Clock } from 'lucide-react';
 import type { Ticket } from '@/types';
@@ -36,6 +37,13 @@ export function TicketCard({ ticket, href }: TicketCardProps) {
           <span className="inline-flex items-center rounded-full bg-surface-secondary px-2.5 py-0.5 text-xs text-muted">
             {CATEGORY_LABELS[ticket.category]}
           </span>
+          {ticket.labels?.slice(0, 3).map((label) => (
+            <LabelBadge
+              key={label.id}
+              name={label.name}
+              color={label.color}
+            />
+          ))}
         </div>
 
         <div className="flex items-center gap-4 text-muted">

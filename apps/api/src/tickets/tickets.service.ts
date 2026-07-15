@@ -26,6 +26,7 @@ import {
   isNoteRequiredForTransition,
 } from './ticket-transitions';
 import { NotificationsService } from '../notifications/notifications.service';
+import { LabelsService } from '../labels/labels.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
@@ -46,6 +47,7 @@ interface ListTicketsQuery {
   resolvedToday?: boolean;
   createdToday?: boolean;
   q?: string;
+  labelId?: string;
 }
 
 @Injectable()
@@ -54,12 +56,16 @@ export class TicketsService {
     private readonly prisma: PrismaService,
     private readonly historyService: HistoryService,
     private readonly notificationsService: NotificationsService,
+    private readonly labelsService: LabelsService,
   ) {}
 
   async create(dto: CreateTicketDto, user: JwtPayload) {
     const area = await this.prisma.area.findUnique({
       where: { name: CATEGORY_AREA_MAP[dto.category] },
     });
+
+    const labelIds = [...new Set(dto.labelIds ?? [])];
+    await this.labelsService.assertLabelsExist(labelIds);
 
     const ticket = await this.prisma.ticket.create({
       data: {
@@ -71,6 +77,9 @@ export class TicketsService {
         priority: dto.priority,
         reporterId: user.sub,
         areaId: area?.id,
+        ...(labelIds.length
+          ? { labels: { connect: labelIds.map((id) => ({ id })) } }
+          : {}),
       },
       include: this.ticketInclude(),
     });
@@ -246,6 +255,24 @@ export class TicketsService {
     return { data: entry };
   }
 
+  async setLabels(id: string, labelIds: string[], user: JwtPayload) {
+    const ticket = await this.getTicketOrThrow(id);
+    this.assertTechnicianAccess(ticket, user);
+
+    const unique = [...new Set(labelIds)];
+    await this.labelsService.assertLabelsExist(unique);
+
+    const updated = await this.prisma.ticket.update({
+      where: { id },
+      data: {
+        labels: { set: unique.map((labelId) => ({ id: labelId })) },
+      },
+      include: this.ticketInclude(),
+    });
+
+    return { data: updated };
+  }
+
   async getHistory(id: string, user: JwtPayload) {
     const ticket = await this.getTicketOrThrow(id);
     this.assertCanView(ticket, user);
@@ -297,6 +324,10 @@ export class TicketsService {
         { title: { contains: query.q, mode: 'insensitive' } },
         { description: { contains: query.q, mode: 'insensitive' } },
       ];
+    }
+
+    if (query.labelId) {
+      where.labels = { some: { id: query.labelId } };
     }
 
     return where;
@@ -361,6 +392,7 @@ export class TicketsService {
       reporter: { select: { id: true, name: true, email: true } },
       assignee: { select: { id: true, name: true } },
       area: { select: { id: true, name: true } },
+      labels: { select: { id: true, name: true, color: true } },
     };
   }
 
@@ -368,6 +400,7 @@ export class TicketsService {
     return {
       reporter: { select: { id: true, name: true } },
       assignee: { select: { id: true, name: true } },
+      labels: { select: { id: true, name: true, color: true } },
     };
   }
 }

@@ -57,6 +57,24 @@ async function main() {
   console.log('Seed completado');
   console.log('  tecnico@fixdesk.dev / fixdesk123');
   console.log('  usuario@fixdesk.dev / fixdesk123');
+
+  const labels = [
+    { name: 'Urgente', color: '#EF4444' },
+    { name: 'Recurrente', color: '#F59E0B' },
+    { name: 'Campus', color: '#3B82F6' },
+    { name: 'Aula', color: '#8B5CF6' },
+    { name: 'Exterior', color: '#10B981' },
+  ];
+
+  for (const label of labels) {
+    await prisma.label.upsert({
+      where: { name: label.name },
+      update: { color: label.color },
+      create: label,
+    });
+  }
+
+  console.log(`  ${labels.length} etiquetas seed`);
 }
 
 main()

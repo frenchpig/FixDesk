@@ -10,10 +10,12 @@ import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { LabelBadge } from '@/components/molecules/LabelBadge';
 import { TicketAttachmentPreview } from '@/components/molecules/TicketAttachmentPreview';
 import { TicketTimeline } from '@/components/organisms/TicketTimeline';
 import { TicketActions } from '@/components/organisms/TicketActions';
 import { TicketComments } from '@/components/organisms/TicketComments';
+import { TicketLabelsEditor } from '@/components/organisms/TicketLabelsEditor';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { CATEGORY_LABELS } from '@/lib/constants';
@@ -27,6 +29,7 @@ export default function DashboardTicketDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const canComment =
     user?.role === 'TECHNICIAN' || user?.role === 'ADMIN';
+  const canEditLabels = canComment;
 
   const load = useCallback(() => {
     if (!token || !id) return;
@@ -64,6 +67,17 @@ export default function DashboardTicketDetailPage() {
                 <Text variant="muted">
                   {CATEGORY_LABELS[ticket.category]} · {ticket.location}
                 </Text>
+                {!!ticket.labels?.length && (
+                  <div className="flex flex-wrap gap-2">
+                    {ticket.labels.map((label) => (
+                      <LabelBadge
+                        key={label.id}
+                        name={label.name}
+                        color={label.color}
+                      />
+                    ))}
+                  </div>
+                )}
                 <Text variant="body">{ticket.description}</Text>
                 <Text variant="caption">
                   Reportado por {ticket.reporter.name}
@@ -79,8 +93,11 @@ export default function DashboardTicketDetailPage() {
             )}
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <AnimatedSection delay={3}>
+              <AnimatedSection delay={3} className="space-y-6">
                 <TicketActions ticket={ticket} onUpdate={load} />
+                {canEditLabels && (
+                  <TicketLabelsEditor ticket={ticket} onUpdate={load} />
+                )}
               </AnimatedSection>
               <AnimatedSection delay={4}>
                 <TicketComments

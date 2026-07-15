@@ -34,6 +34,12 @@ export interface AppNotification {
   createdAt: string;
 }
 
+export interface TicketLabel {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -54,6 +60,7 @@ export interface Ticket {
   reporter: { id: string; name: string; email?: string };
   assignee?: { id: string; name: string } | null;
   area?: { id: string; name: string } | null;
+  labels?: TicketLabel[];
   resolvedAt?: string | null;
   createdAt: string;
   updatedAt: string;

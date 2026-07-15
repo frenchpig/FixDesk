@@ -103,6 +103,7 @@ model Ticket {
 
   history       TicketHistory[]
   notifications Notification[]
+  labels        Label[]
 
   @@index([status])
   @@index([priority])
@@ -111,6 +112,15 @@ model Ticket {
   @@index([assigneeId])
   @@index([createdAt])
   @@index([status, priority])
+}
+
+model Label {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#64748B")
+  createdAt DateTime @default(now())
+
+  tickets Ticket[]
 }
 
 model TicketHistory {

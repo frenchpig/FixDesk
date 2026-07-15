@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { Button } from '@/components/atoms/Button';
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/atoms/Textarea';
 import { Select } from '@/components/atoms/Select';
 import { FormField } from '@/components/molecules/FormField';
 import { PhotoAttachmentField } from '@/components/molecules/PhotoAttachmentField';
+import { LabelPicker } from '@/components/molecules/LabelPicker';
 import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
@@ -17,7 +18,7 @@ import {
   simulateUploadDelay,
   toPlaceholderPhotoUrl,
 } from '@/lib/photo-placeholder';
-import type { Ticket } from '@/types';
+import type { Ticket, TicketLabel } from '@/types';
 
 const schema = z.object({
   title: z.string().min(5, 'Mínimo 5 caracteres').max(120),
@@ -33,6 +34,16 @@ export function TicketForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [labels, setLabels] = useState<TicketLabel[]>([]);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .get<{ data: TicketLabel[] }>('/labels', token)
+      .then((res) => setLabels(res.data))
+      .catch(() => setLabels([]));
+  }, [token]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -68,7 +79,13 @@ export function TicketForm() {
 
       const res = await api.post<{ data: Ticket }>(
         '/tickets',
-        { ...result.data, ...(photoUrl ? { photoUrl } : {}) },
+        {
+          ...result.data,
+          ...(photoUrl ? { photoUrl } : {}),
+          ...(selectedLabelIds.length
+            ? { labelIds: selectedLabelIds }
+            : {}),
+        },
         token ?? undefined,
       );
       router.push(`/mis-tickets/${res.data.id}`);
@@ -126,6 +143,18 @@ export function TicketForm() {
             hasError={!!errors.description}
           />
         </FormField>
+
+        <div className="space-y-2">
+          <Text variant="caption" className="font-medium text-foreground">
+            Etiquetas (opcional)
+          </Text>
+          <LabelPicker
+            options={labels}
+            selectedIds={selectedLabelIds}
+            onChange={setSelectedLabelIds}
+            disabled={isLoading}
+          />
+        </div>
 
         <PhotoAttachmentField
           filename={photoFile?.name ?? null}

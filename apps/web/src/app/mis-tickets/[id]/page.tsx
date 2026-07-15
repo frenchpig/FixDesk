@@ -8,6 +8,7 @@ import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { StatusBadge } from '@/components/molecules/StatusBadge';
 import { PriorityBadge } from '@/components/molecules/PriorityBadge';
+import { LabelBadge } from '@/components/molecules/LabelBadge';
 import { TicketAttachmentPreview } from '@/components/molecules/TicketAttachmentPreview';
 import { TicketTimeline } from '@/components/organisms/TicketTimeline';
 import { TicketComments } from '@/components/organisms/TicketComments';
@@ -62,6 +63,17 @@ export default function MisTicketDetailPage() {
             <Text variant="muted">
               {CATEGORY_LABELS[ticket.category]} · {ticket.location}
             </Text>
+            {!!ticket.labels?.length && (
+              <div className="flex flex-wrap gap-2">
+                {ticket.labels.map((label) => (
+                  <LabelBadge
+                    key={label.id}
+                    name={label.name}
+                    color={label.color}
+                  />
+                ))}
+              </div>
+            )}
             <Text variant="body">{ticket.description}</Text>
           </Card>
 
