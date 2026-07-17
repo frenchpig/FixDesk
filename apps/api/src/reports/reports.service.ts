@@ -2,35 +2,44 @@ import { Injectable } from '@nestjs/common';
 import {
   HistoryEventType,
   Role,
-  TicketStatus,
+  StatusSemantic,
   type Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import type { ReportQueryDto } from './dto/report-query.dto';
-import {
-  buildReportsExcel,
-  buildReportsPdf,
-} from './reports-export.builder';
+import { buildReportsExcel, buildReportsPdf } from './reports-export.builder';
 import { SettingsService } from '../settings/settings.service';
-
-const OPEN_STATUSES: TicketStatus[] = [
-  TicketStatus.OPEN,
-  TicketStatus.IN_PROGRESS,
-  TicketStatus.PENDING,
-];
+import { WorkflowService } from '../workflow/workflow.service';
 
 @Injectable()
 export class ReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
+    private readonly workflowService: WorkflowService,
   ) {}
 
   async getMetrics(user: JwtPayload, query: ReportQueryDto) {
     const { dateFrom, dateTo } = this.resolveDateRange(query);
     const baseWhere = this.buildFilterWhere(user, query);
-    const slaTargetHours = await this.settings.getSlaTargetHours();
+    const [slaTargetHours, reportingStates] = await Promise.all([
+      this.settings.getSlaTargetHours(),
+      this.workflowService.getReportingStates(),
+    ]);
+
+    // Keys resueltas por semántica (incluye estados inactivos: los tickets
+    // que quedaron en una key desactivada siguen contando en las métricas).
+    const keysBySemantic = (semantic: StatusSemantic) =>
+      reportingStates.filter((s) => s.semantic === semantic).map((s) => s.key);
+
+    const resolvedKeys = keysBySemantic(StatusSemantic.RESOLVED);
+    const cancelledKeys = keysBySemantic(StatusSemantic.CANCELLED);
+    const inProgressKeys = keysBySemantic(StatusSemantic.IN_PROGRESS);
+    const pendingKeys = keysBySemantic(StatusSemantic.PENDING);
+    const openBacklogKeys = reportingStates
+      .filter((s) => !s.finalized)
+      .map((s) => s.key);
 
     const periodCreatedWhere: Prisma.TicketWhereInput = {
       ...baseWhere,
@@ -39,7 +48,7 @@ export class ReportsService {
 
     const periodResolvedWhere: Prisma.TicketWhereInput = {
       ...baseWhere,
-      status: TicketStatus.RESOLVED,
+      status: { in: resolvedKeys },
       resolvedAt: { gte: dateFrom, lte: dateTo },
     };
 
@@ -68,33 +77,33 @@ export class ReportsService {
       this.prisma.ticket.count({
         where: {
           ...periodCreatedWhere,
-          status: TicketStatus.CANCELLED,
+          status: { in: cancelledKeys },
         },
       }),
       this.prisma.ticket.count({
         where: {
           ...baseWhere,
-          status: { in: OPEN_STATUSES },
+          status: { in: openBacklogKeys },
         },
       }),
       this.prisma.ticket.count({
-        where: { ...baseWhere, status: TicketStatus.IN_PROGRESS },
+        where: { ...baseWhere, status: { in: inProgressKeys } },
       }),
       this.prisma.ticket.count({
-        where: { ...baseWhere, status: TicketStatus.PENDING },
+        where: { ...baseWhere, status: { in: pendingKeys } },
       }),
       this.prisma.ticket.count({
         where: {
           ...baseWhere,
           priority: 'HIGH',
-          status: { in: OPEN_STATUSES },
+          status: { in: openBacklogKeys },
         },
       }),
       this.prisma.ticket.count({
         where: {
           ...baseWhere,
           severity: 'CRITICAL',
-          status: { in: OPEN_STATUSES },
+          status: { in: openBacklogKeys },
         },
       }),
       this.prisma.ticket.groupBy({
@@ -153,7 +162,7 @@ export class ReportsService {
       this.prisma.ticketHistory.findMany({
         where: {
           eventType: HistoryEventType.STATUS_CHANGED,
-          newStatus: TicketStatus.IN_PROGRESS,
+          newStatus: { in: inProgressKeys },
           ticket: baseWhere,
           createdAt: { gte: dateFrom, lte: dateTo },
         },
@@ -174,7 +183,8 @@ export class ReportsService {
 
     const slaCompliant = resolvedTickets.filter((t) => {
       if (!t.resolvedAt) return false;
-      const hours = (t.resolvedAt.getTime() - t.createdAt.getTime()) / 3_600_000;
+      const hours =
+        (t.resolvedAt.getTime() - t.createdAt.getTime()) / 3_600_000;
       return hours <= slaTargetHours;
     }).length;
 
@@ -193,9 +203,9 @@ export class ReportsService {
       }
     }
 
-    const avgFirstResponseHours = this.avgHours(
-      [...firstResponseByTicket.values()],
-    );
+    const avgFirstResponseHours = this.avgHours([
+      ...firstResponseByTicket.values(),
+    ]);
 
     const areaIds = byAreaRaw
       .map((r) => r.areaId)
@@ -220,11 +230,13 @@ export class ReportsService {
             select: { id: true, name: true },
           })
         : [],
-      this.getAssigneeResolvedStats(baseWhere, dateFrom, dateTo),
+      this.getAssigneeResolvedStats(baseWhere, dateFrom, dateTo, resolvedKeys),
     ]);
 
     const areaMap = new Map(areas.map((a) => [a.id, a.name]));
     const userMap = new Map(users.map((u) => [u.id, u.name]));
+
+    const statusLabels = await this.workflowService.getAllStatusLabels();
 
     return {
       data: {
@@ -232,6 +244,7 @@ export class ReportsService {
           from: dateFrom.toISOString(),
           to: dateTo.toISOString(),
         },
+        statusLabels,
         kpis: {
           created,
           resolved,
@@ -268,10 +281,12 @@ export class ReportsService {
         })),
         byArea: byAreaRaw.map((r) => ({
           areaId: r.areaId,
-          areaName: r.areaId ? (areaMap.get(r.areaId) ?? 'Sin área') : 'Sin área',
+          areaName: r.areaId
+            ? (areaMap.get(r.areaId) ?? 'Sin área')
+            : 'Sin área',
           count: r._count,
         })),
-        byTechnician: await this.buildTechnicianMetrics(
+        byTechnician: this.buildTechnicianMetrics(
           byAssigneeRaw,
           userMap,
           assigneeResolved,
@@ -365,25 +380,23 @@ export class ReportsService {
     baseWhere: Prisma.TicketWhereInput,
     dateFrom: Date,
     dateTo: Date,
+    resolvedKeys: string[],
   ) {
+    const resolvedWhere: Prisma.TicketWhereInput = {
+      ...baseWhere,
+      status: { in: resolvedKeys },
+      assigneeId: { not: null },
+      resolvedAt: { gte: dateFrom, lte: dateTo },
+    };
+
     const rows = await this.prisma.ticket.groupBy({
       by: ['assigneeId'],
-      where: {
-        ...baseWhere,
-        status: TicketStatus.RESOLVED,
-        assigneeId: { not: null },
-        resolvedAt: { gte: dateFrom, lte: dateTo },
-      },
+      where: resolvedWhere,
       _count: true,
     });
 
     const resolvedWithTimes = await this.prisma.ticket.findMany({
-      where: {
-        ...baseWhere,
-        status: TicketStatus.RESOLVED,
-        assigneeId: { not: null },
-        resolvedAt: { gte: dateFrom, lte: dateTo },
-      },
+      where: resolvedWhere,
       select: { assigneeId: true, createdAt: true, resolvedAt: true },
     });
 
@@ -400,7 +413,7 @@ export class ReportsService {
     return { counts: rows, timesByAssignee };
   }
 
-  private async buildTechnicianMetrics(
+  private buildTechnicianMetrics(
     byAssigneeRaw: { assigneeId: string | null; _count: number }[],
     userMap: Map<string, string>,
     assigneeResolved: {
@@ -418,15 +431,16 @@ export class ReportsService {
         const times = assigneeResolved.timesByAssignee.get(r.assigneeId!) ?? [];
         const avgHours =
           times.length > 0
-            ? Math.round((times.reduce((a, b) => a + b, 0) / times.length) * 10) /
-              10
+            ? Math.round(
+                (times.reduce((a, b) => a + b, 0) / times.length) * 10,
+              ) / 10
             : null;
 
         return {
           userId: r.assigneeId!,
           userName: userMap.get(r.assigneeId!) ?? 'Sin asignar',
           assigned: r._count,
-          resolved: resolvedMap.get(r.assigneeId!) ?? 0,
+          resolved: resolvedMap.get(r.assigneeId) ?? 0,
           avgResolutionHours: avgHours,
         };
       })

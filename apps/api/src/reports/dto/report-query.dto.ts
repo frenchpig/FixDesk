@@ -1,15 +1,5 @@
-import {
-  IsDateString,
-  IsEnum,
-  IsOptional,
-  IsString,
-} from 'class-validator';
-import {
-  TicketCategory,
-  TicketPriority,
-  TicketSeverity,
-  TicketStatus,
-} from '@prisma/client';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import { TicketCategory, TicketPriority, TicketSeverity } from '@prisma/client';
 
 export class ReportQueryDto {
   @IsOptional()
@@ -25,8 +15,8 @@ export class ReportQueryDto {
   category?: TicketCategory;
 
   @IsOptional()
-  @IsEnum(TicketStatus)
-  status?: TicketStatus;
+  @IsString()
+  status?: string;
 
   @IsOptional()
   @IsEnum(TicketPriority)

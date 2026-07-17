@@ -1,9 +1,10 @@
-// Responsabilidad: formulario admin para editar labels, flags, colores y transiciones del workflow
+// Responsabilidad: CRUD admin de estados del workflow (crear, editar, ordenar, desactivar)
 // Usado por: /configuracion/workflow
 // NO hace: mutar tickets ni validar en servidor (el API valida)
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Input } from '@/components/atoms/Input';
@@ -13,14 +14,13 @@ import { FormField } from '@/components/molecules/FormField';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useWorkflow } from '@/lib/workflow-context';
-import { FALLBACK_WORKFLOW } from '@/lib/workflow-helpers';
 import type {
-  TicketStatus,
+  AdminWorkflowSettings,
+  AdminWorkflowState,
+  StatusSemantic,
   WorkflowBadgeVariant,
-  WorkflowPayload,
-  WorkflowState,
 } from '@/types';
-import { GitBranch } from 'lucide-react';
+import { ArrowDown, ArrowUp, GitBranch, Plus, Trash2 } from 'lucide-react';
 
 const BADGE_OPTIONS: { value: WorkflowBadgeVariant; label: string }[] = [
   { value: 'default', label: 'Neutro' },
@@ -30,114 +30,187 @@ const BADGE_OPTIONS: { value: WorkflowBadgeVariant; label: string }[] = [
   { value: 'danger', label: 'Peligro' },
 ];
 
-type Draft = WorkflowPayload;
-
-function cloneWorkflow(payload: WorkflowPayload): Draft {
-  return {
-    states: payload.states.map((s) => ({ ...s })),
-    transitions: Object.fromEntries(
-      Object.entries(payload.transitions).map(([k, v]) => [k, [...v]]),
-    ) as Record<TicketStatus, TicketStatus[]>,
-    noteRequired: {
-      entering: [...payload.noteRequired.entering],
-      leavingFinalized: payload.noteRequired.leavingFinalized,
-    },
-  };
-}
+const SEMANTIC_OPTIONS: { value: StatusSemantic; label: string }[] = [
+  { value: 'OPEN', label: 'Abierto (backlog)' },
+  { value: 'IN_PROGRESS', label: 'En progreso' },
+  { value: 'PENDING', label: 'En espera' },
+  { value: 'RESOLVED', label: 'Resuelto' },
+  { value: 'CANCELLED', label: 'Cancelado' },
+];
 
 export function WorkflowSettingsForm() {
   const { token } = useAuth();
   const { reload } = useWorkflow();
-  const [draft, setDraft] = useState<Draft>(() =>
-    cloneWorkflow(FALLBACK_WORKFLOW),
-  );
+
+  const [states, setStates] = useState<AdminWorkflowState[]>([]);
+  const [noteOnReopen, setNoteOnReopen] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const [newLabel, setNewLabel] = useState('');
+  const [newSemantic, setNewSemantic] = useState<StatusSemantic>('IN_PROGRESS');
+  const [newBadge, setNewBadge] = useState<WorkflowBadgeVariant>('default');
+  const [isCreating, setIsCreating] = useState(false);
+
+  const load = useCallback(async () => {
     if (!token) return;
-    setIsLoading(true);
-    setError(null);
-    api
-      .get<{ data: WorkflowPayload }>('/settings/workflow', token)
-      .then((res) => {
-        setDraft(cloneWorkflow(res.data));
-      })
-      .catch((err) => setError((err as Error).message))
-      .finally(() => setIsLoading(false));
-  }, [token]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  function updateState(id: TicketStatus, patch: Partial<WorkflowState>) {
-    setDraft((prev) => ({
-      ...prev,
-      states: prev.states.map((s) => (s.id === id ? { ...s, ...patch } : s)),
-    }));
-  }
-
-  function toggleTransition(from: TicketStatus, to: TicketStatus) {
-    setDraft((prev) => {
-      const current = prev.transitions[from] ?? [];
-      const next = current.includes(to)
-        ? current.filter((s) => s !== to)
-        : [...current, to];
-      return {
-        ...prev,
-        transitions: { ...prev.transitions, [from]: next },
-      };
-    });
-  }
-
-  function toggleNoteEntering(status: TicketStatus) {
-    setDraft((prev) => {
-      const entering = prev.noteRequired.entering.includes(status)
-        ? prev.noteRequired.entering.filter((s) => s !== status)
-        : [...prev.noteRequired.entering, status];
-      return {
-        ...prev,
-        noteRequired: { ...prev.noteRequired, entering },
-      };
-    });
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token) return;
-
-    if (!draft.states.some((s) => s.kanban)) {
-      setError('Debe haber al menos un estado visible en kanban');
-      setSuccess(null);
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-    setSuccess(null);
-
     try {
-      const res = await api.patch<{ data: WorkflowPayload }>(
+      const res = await api.get<{ data: AdminWorkflowSettings }>(
         '/settings/workflow',
-        {
-          states: draft.states,
-          transitions: draft.transitions,
-          noteRequired: draft.noteRequired,
-        },
         token,
       );
-      setDraft(cloneWorkflow(res.data));
-      await reload();
-      setSuccess('Workflow guardado. Los cambios ya aplican en toda la app.');
+      setStates(res.data.states);
+      setNoteOnReopen(res.data.workflowNoteOnReopen);
+      setError(null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function updateDraft(key: string, patch: Partial<AdminWorkflowState>) {
+    setStates((prev) =>
+      prev.map((s) => (s.key === key ? { ...s, ...patch } : s)),
+    );
+  }
+
+  function toggleTarget(key: string, target: string) {
+    setStates((prev) =>
+      prev.map((s) => {
+        if (s.key !== key) return s;
+        const next = s.allowedTargets.includes(target)
+          ? s.allowedTargets.filter((t) => t !== target)
+          : [...s.allowedTargets, target];
+        return { ...s, allowedTargets: next };
+      }),
+    );
+  }
+
+  async function runMutation(key: string | null, fn: () => Promise<void>) {
+    if (!token) return;
+    setSavingKey(key ?? '__global__');
+    setError(null);
+    setSuccess(null);
+    try {
+      await fn();
+      await reload();
+      setSuccess('Cambios guardados. Ya aplican en toda la app.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSavingKey(null);
     }
   }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !newLabel.trim()) return;
+    setIsCreating(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.post(
+        '/settings/workflow/states',
+        { label: newLabel.trim(), semantic: newSemantic, badgeVariant: newBadge },
+        token,
+      );
+      setNewLabel('');
+      await load();
+      await reload();
+      setSuccess('Estado creado.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
+  function handleSaveState(state: AdminWorkflowState) {
+    void runMutation(state.key, async () => {
+      await api.patch(
+        `/settings/workflow/states/${state.key}`,
+        {
+          label: state.label,
+          semantic: state.semantic,
+          badgeVariant: state.badgeVariant,
+          kanban: state.kanban,
+          finalized: state.finalized,
+          noteRequiredOnEnter: state.noteRequiredOnEnter,
+          allowedTargets: state.allowedTargets,
+        },
+        token ?? undefined,
+      );
+      await load();
+    });
+  }
+
+  function handleMove(state: AdminWorkflowState, direction: -1 | 1) {
+    const index = states.findIndex((s) => s.key === state.key);
+    const neighbor = states[index + direction];
+    if (!neighbor) return;
+    void runMutation(state.key, async () => {
+      await api.patch(
+        `/settings/workflow/states/${state.key}`,
+        { order: neighbor.order },
+        token ?? undefined,
+      );
+      await api.patch(
+        `/settings/workflow/states/${neighbor.key}`,
+        { order: state.order },
+        token ?? undefined,
+      );
+      await load();
+    });
+  }
+
+  function handleDelete(state: AdminWorkflowState) {
+    const confirmed = window.confirm(
+      `¿Eliminar el estado «${state.label}»? Si tiene tickets asociados solo se desactivará.`,
+    );
+    if (!confirmed) return;
+    void runMutation(state.key, async () => {
+      await api.delete(`/settings/workflow/states/${state.key}`, token ?? undefined);
+      await load();
+    });
+  }
+
+  function handleReactivate(state: AdminWorkflowState) {
+    void runMutation(state.key, async () => {
+      await api.patch(
+        `/settings/workflow/states/${state.key}`,
+        { isActive: true },
+        token ?? undefined,
+      );
+      await load();
+    });
+  }
+
+  function handleSetDefault(key: string) {
+    void runMutation(null, async () => {
+      await api.patch('/settings/workflow', { defaultStateKey: key }, token ?? undefined);
+      await load();
+    });
+  }
+
+  function handleNoteOnReopen(checked: boolean) {
+    setNoteOnReopen(checked);
+    void runMutation(null, async () => {
+      await api.patch(
+        '/settings/workflow',
+        { workflowNoteOnReopen: checked },
+        token ?? undefined,
+      );
+    });
+  }
+
+  const activeStates = states.filter((s) => s.isActive);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -146,44 +219,190 @@ export function WorkflowSettingsForm() {
           Workflow de estados
         </Text>
         <Text variant="muted">
-          Personaliza nombres, colores, columnas del kanban, transiciones
-          permitidas y cuándo se exige una nota. Los 5 estados del sistema
-          (OPEN…CANCELLED) no se pueden agregar ni eliminar.
+          Crea, edita, ordena y desactiva estados del ticket. Los cambios
+          aplican de inmediato al kanban, transiciones y reportería.
         </Text>
       </div>
 
       {isLoading ? (
         <Text variant="muted">Cargando configuración...</Text>
       ) : (
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
-          {draft.states.map((state) => (
-            <Card key={state.id} className="space-y-4">
-              <div className="flex items-center gap-2">
+        <div className="space-y-6">
+          <Card className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Plus size={18} className="text-primary" />
+              <Text variant="h3">Nuevo estado</Text>
+            </div>
+            <form
+              onSubmit={(e) => void handleCreate(e)}
+              className="grid gap-3 sm:grid-cols-3"
+            >
+              <FormField label="Nombre" htmlFor="new-label">
+                <Input
+                  id="new-label"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  placeholder="Ej: En revisión"
+                  minLength={2}
+                  maxLength={40}
+                  required
+                />
+              </FormField>
+              <FormField label="Semántica (reportería)" htmlFor="new-semantic">
+                <Select
+                  id="new-semantic"
+                  value={newSemantic}
+                  onChange={(e) =>
+                    setNewSemantic(e.target.value as StatusSemantic)
+                  }
+                >
+                  {SEMANTIC_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label="Color del badge" htmlFor="new-badge">
+                <Select
+                  id="new-badge"
+                  value={newBadge}
+                  onChange={(e) =>
+                    setNewBadge(e.target.value as WorkflowBadgeVariant)
+                  }
+                >
+                  {BADGE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+              <div className="sm:col-span-3">
+                <Button type="submit" isLoading={isCreating}>
+                  Crear estado
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+          <Card className="space-y-3">
+            <Text variant="h3">Ajustes globales</Text>
+            <FormField label="Estado inicial de tickets nuevos" htmlFor="default-state">
+              <Select
+                id="default-state"
+                value={activeStates.find((s) => s.isDefault)?.key ?? ''}
+                onChange={(e) => handleSetDefault(e.target.value)}
+              >
+                {activeStates.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={noteOnReopen}
+                onChange={(e) => handleNoteOnReopen(e.target.checked)}
+              />
+              Exigir nota al salir de un estado finalizado (reapertura)
+            </label>
+          </Card>
+
+          {states.map((state, index) => (
+            <Card
+              key={state.key}
+              className={`space-y-4 ${state.isActive ? '' : 'opacity-60'}`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
                 <GitBranch size={18} className="text-primary" />
-                <Text variant="h3">{state.id}</Text>
+                <Text variant="h3">{state.key}</Text>
+                {state.isDefault && <Badge variant="primary">Default</Badge>}
+                {!state.isActive && <Badge variant="danger">Inactivo</Badge>}
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Subir ${state.label}`}
+                    disabled={index === 0 || savingKey !== null}
+                    onClick={() => handleMove(state, -1)}
+                  >
+                    <ArrowUp size={16} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Bajar ${state.label}`}
+                    disabled={index === states.length - 1 || savingKey !== null}
+                    onClick={() => handleMove(state, 1)}
+                  >
+                    <ArrowDown size={16} />
+                  </Button>
+                  {state.isActive ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Eliminar ${state.label}`}
+                      disabled={state.isDefault || savingKey !== null}
+                      onClick={() => handleDelete(state)}
+                    >
+                      <Trash2 size={16} className="text-danger" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={savingKey !== null}
+                      onClick={() => handleReactivate(state)}
+                    >
+                      Reactivar
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FormField label="Nombre visible" htmlFor={`label-${state.id}`}>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <FormField label="Nombre visible" htmlFor={`label-${state.key}`}>
                   <Input
-                    id={`label-${state.id}`}
+                    id={`label-${state.key}`}
                     value={state.label}
                     onChange={(e) =>
-                      updateState(state.id, { label: e.target.value })
+                      updateDraft(state.key, { label: e.target.value })
                     }
                     required
                   />
                 </FormField>
 
-                <FormField
-                  label="Color del badge"
-                  htmlFor={`badge-${state.id}`}
-                >
+                <FormField label="Semántica" htmlFor={`semantic-${state.key}`}>
                   <Select
-                    id={`badge-${state.id}`}
+                    id={`semantic-${state.key}`}
+                    value={state.semantic}
+                    onChange={(e) =>
+                      updateDraft(state.key, {
+                        semantic: e.target.value as StatusSemantic,
+                      })
+                    }
+                  >
+                    {SEMANTIC_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+
+                <FormField label="Color del badge" htmlFor={`badge-${state.key}`}>
+                  <Select
+                    id={`badge-${state.key}`}
                     value={state.badgeVariant}
                     onChange={(e) =>
-                      updateState(state.id, {
+                      updateDraft(state.key, {
                         badgeVariant: e.target.value as WorkflowBadgeVariant,
                       })
                     }
@@ -203,7 +422,7 @@ export function WorkflowSettingsForm() {
                     type="checkbox"
                     checked={state.kanban}
                     onChange={(e) =>
-                      updateState(state.id, { kanban: e.target.checked })
+                      updateDraft(state.key, { kanban: e.target.checked })
                     }
                   />
                   Visible en kanban
@@ -213,7 +432,7 @@ export function WorkflowSettingsForm() {
                     type="checkbox"
                     checked={state.finalized}
                     onChange={(e) =>
-                      updateState(state.id, { finalized: e.target.checked })
+                      updateDraft(state.key, { finalized: e.target.checked })
                     }
                   />
                   Estado finalizado
@@ -221,8 +440,12 @@ export function WorkflowSettingsForm() {
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={draft.noteRequired.entering.includes(state.id)}
-                    onChange={() => toggleNoteEntering(state.id)}
+                    checked={state.noteRequiredOnEnter}
+                    onChange={(e) =>
+                      updateDraft(state.key, {
+                        noteRequiredOnEnter: e.target.checked,
+                      })
+                    }
                   />
                   Requiere nota al entrar
                 </label>
@@ -233,49 +456,34 @@ export function WorkflowSettingsForm() {
                   Transiciones permitidas desde {state.label}
                 </Text>
                 <div className="flex flex-wrap gap-3">
-                  {draft.states
-                    .filter((s) => s.id !== state.id)
+                  {activeStates
+                    .filter((s) => s.key !== state.key)
                     .map((target) => (
                       <label
-                        key={target.id}
+                        key={target.key}
                         className="flex items-center gap-2 text-sm"
                       >
                         <input
                           type="checkbox"
-                          checked={(
-                            draft.transitions[state.id] ?? []
-                          ).includes(target.id)}
-                          onChange={() =>
-                            toggleTransition(state.id, target.id)
-                          }
+                          checked={state.allowedTargets.includes(target.key)}
+                          onChange={() => toggleTarget(state.key, target.key)}
                         />
                         {target.label}
                       </label>
                     ))}
                 </div>
               </div>
+
+              <Button
+                type="button"
+                isLoading={savingKey === state.key}
+                disabled={savingKey !== null && savingKey !== state.key}
+                onClick={() => handleSaveState(state)}
+              >
+                Guardar cambios
+              </Button>
             </Card>
           ))}
-
-          <Card className="space-y-3">
-            <Text variant="h3">Notas al reabrir</Text>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={draft.noteRequired.leavingFinalized}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    noteRequired: {
-                      ...prev.noteRequired,
-                      leavingFinalized: e.target.checked,
-                    },
-                  }))
-                }
-              />
-              Exigir nota al salir de un estado finalizado
-            </label>
-          </Card>
 
           {error && (
             <Text variant="caption" className="text-danger">
@@ -287,11 +495,7 @@ export function WorkflowSettingsForm() {
               {success}
             </Text>
           )}
-
-          <Button type="submit" isLoading={isSaving}>
-            Guardar workflow
-          </Button>
-        </form>
+        </div>
       )}
     </div>
   );

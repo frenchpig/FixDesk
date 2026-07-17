@@ -7,12 +7,7 @@ import { LabelsModule } from '../labels/labels.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 
 @Module({
-  imports: [
-    HistoryModule,
-    NotificationsModule,
-    LabelsModule,
-    WorkflowModule,
-  ],
+  imports: [HistoryModule, NotificationsModule, LabelsModule, WorkflowModule],
   controllers: [TicketsController],
   providers: [TicketsService],
 })

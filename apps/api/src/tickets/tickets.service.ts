@@ -17,9 +17,9 @@ import {
   HistoryEventType,
   NotificationType,
   Role,
+  StatusSemantic,
   TicketPriority,
   TicketSeverity,
-  TicketStatus,
   type Prisma,
   type TicketCategory,
 } from '@prisma/client';
@@ -53,7 +53,7 @@ const SEVERITY_LABELS: Record<TicketSeverity, string> = {
 interface ListTicketsQuery {
   page?: number;
   perPage?: number;
-  status?: TicketStatus;
+  status?: string;
   priority?: string;
   severity?: string;
   category?: TicketCategory;
@@ -89,19 +89,21 @@ export class TicketsService {
     const canSetTriage =
       user.role === Role.TECHNICIAN || user.role === Role.ADMIN;
 
+    const workflow = await this.workflowService.getResolvedWorkflow();
+    const defaultStatus = this.workflowService.getDefaultStateKey(workflow);
+
     const ticket = await this.prisma.ticket.create({
       data: {
         title: dto.title,
         description: dto.description,
         category: dto.category,
+        status: defaultStatus,
         location: dto.location,
         photoUrl: dto.photoUrl,
         ...(canSetTriage
           ? {
               ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
-              ...(dto.severity !== undefined
-                ? { severity: dto.severity }
-                : {}),
+              ...(dto.severity !== undefined ? { severity: dto.severity } : {}),
             }
           : {}),
         reporterId: user.sub,
@@ -117,7 +119,7 @@ export class TicketsService {
       ticketId: ticket.id,
       userId: user.sub,
       eventType: HistoryEventType.CREATED,
-      newStatus: TicketStatus.OPEN,
+      newStatus: defaultStatus,
     });
 
     if (dto.photoUrl) {
@@ -249,9 +251,7 @@ export class TicketsService {
       const area = await this.prisma.area.findUnique({
         where: { name: CATEGORY_AREA_MAP[dto.category] },
       });
-      data.area = area
-        ? { connect: { id: area.id } }
-        : { disconnect: true };
+      data.area = area ? { connect: { id: area.id } } : { disconnect: true };
     }
 
     if (Object.keys(data).length === 0) {
@@ -287,6 +287,13 @@ export class TicketsService {
 
     const workflow = await this.workflowService.getResolvedWorkflow();
 
+    const targetState = workflow.states.find((s) => s.id === dto.status);
+    if (!targetState) {
+      throw new BadRequestException(
+        `Estado desconocido o inactivo: ${dto.status}`,
+      );
+    }
+
     if (
       !this.workflowService.isTransitionAllowed(
         workflow,
@@ -316,7 +323,8 @@ export class TicketsService {
       where: { id },
       data: {
         status: dto.status,
-        resolvedAt: dto.status === TicketStatus.RESOLVED ? new Date() : null,
+        resolvedAt:
+          targetState.semantic === StatusSemantic.RESOLVED ? new Date() : null,
       },
       include: this.ticketInclude(),
     });
@@ -488,12 +496,11 @@ export class TicketsService {
     }
 
     if (query.resolvedToday) {
+      // resolvedAt solo queda seteado mientras el ticket está en un estado
+      // con semántica RESOLVED (se limpia al salir), así que basta el rango.
       const start = new Date();
       start.setHours(0, 0, 0, 0);
-      and.push({
-        status: TicketStatus.RESOLVED,
-        resolvedAt: { gte: start },
-      });
+      and.push({ resolvedAt: { gte: start } });
     }
 
     if (query.createdToday) {
@@ -538,7 +545,7 @@ export class TicketsService {
     }
 
     if (and.length === 0) return {};
-    if (and.length === 1) return and[0]!;
+    if (and.length === 1) return and[0];
     return { AND: and };
   }
 

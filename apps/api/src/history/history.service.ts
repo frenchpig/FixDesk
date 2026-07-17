@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  HistoryEventType,
-  TicketStatus,
-  type Prisma,
-} from '@prisma/client';
+import { HistoryEventType, type Prisma } from '@prisma/client';
 
 @Injectable()
 export class HistoryService {
@@ -14,8 +10,8 @@ export class HistoryService {
     ticketId: string;
     userId: string;
     eventType: HistoryEventType;
-    oldStatus?: TicketStatus;
-    newStatus?: TicketStatus;
+    oldStatus?: string;
+    newStatus?: string;
     note?: string;
     metadata?: Prisma.InputJsonValue;
   }) {

@@ -6,7 +6,11 @@ export type TicketCategory =
   | 'INFRASTRUCTURE'
   | 'ELECTRICAL';
 
-export type TicketStatus =
+/** Key de estado del workflow (dinámico, definido en DB). */
+export type TicketStatus = string;
+
+/** Rol semántico estable de un estado (para reportería/KPIs). */
+export type StatusSemantic =
   | 'OPEN'
   | 'IN_PROGRESS'
   | 'PENDING'
@@ -203,6 +207,10 @@ export interface WorkflowState {
   finalized: boolean;
   kanban: boolean;
   badgeVariant: WorkflowBadgeVariant;
+  semantic: StatusSemantic;
+  noteRequiredOnEnter: boolean;
+  isDefault: boolean;
+  order: number;
 }
 
 export interface WorkflowNoteRequired {
@@ -214,4 +222,27 @@ export interface WorkflowPayload {
   states: WorkflowState[];
   transitions: Record<TicketStatus, TicketStatus[]>;
   noteRequired: WorkflowNoteRequired;
+}
+
+/** Fila de estado tal como la expone GET /settings/workflow (CRUD admin). */
+export interface AdminWorkflowState {
+  id: string;
+  key: string;
+  label: string;
+  badgeVariant: WorkflowBadgeVariant;
+  semantic: StatusSemantic;
+  finalized: boolean;
+  kanban: boolean;
+  noteRequiredOnEnter: boolean;
+  isDefault: boolean;
+  isActive: boolean;
+  order: number;
+  allowedTargets: string[];
+}
+
+export interface AdminWorkflowSettings {
+  states: AdminWorkflowState[];
+  workflowNoteOnReopen: boolean;
+  updatedAt: string | null;
+  updatedById: string | null;
 }

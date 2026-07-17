@@ -5,13 +5,7 @@
 import { existsSync } from 'node:fs';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
-import {
-  TicketCategory,
-  TicketPriority,
-  TicketSeverity,
-  TicketStatus,
-} from '@prisma/client';
-import { STATUS_LABELS } from '../tickets/ticket-transitions';
+import { TicketCategory, TicketPriority, TicketSeverity } from '@prisma/client';
 
 const CATEGORY_LABELS: Record<TicketCategory, string> = {
   HARDWARE: 'Hardware',
@@ -54,6 +48,8 @@ const BRAND = {
 
 export type ReportsExportData = {
   period: { from: string; to: string };
+  /** Labels de estados del workflow (incluye inactivos con tickets históricos). */
+  statusLabels: Record<string, string>;
   kpis: {
     created: number;
     resolved: number;
@@ -70,7 +66,7 @@ export type ReportsExportData = {
     slaComplianceRate: number | null;
     slaTargetHours: number;
   };
-  byStatus: { status: TicketStatus; count: number }[];
+  byStatus: { status: string; count: number }[];
   byCategory: { category: TicketCategory; count: number }[];
   byPriority: { priority: TicketPriority; count: number }[];
   bySeverity: { severity: TicketSeverity; count: number }[];
@@ -115,13 +111,21 @@ function kpiRows(data: ReportsExportData): Array<{
     { label: 'Backlog abierto', value: kpis.openBacklog },
     { label: 'En progreso', value: kpis.inProgress },
     { label: 'Pendientes', value: kpis.pending, tone: 'warning' },
-    { label: 'Alta prioridad abiertos', value: kpis.highPriorityOpen, tone: 'danger' },
+    {
+      label: 'Alta prioridad abiertos',
+      value: kpis.highPriorityOpen,
+      tone: 'danger',
+    },
     {
       label: 'Severidad crítica abiertos',
       value: kpis.criticalSeverityOpen,
       tone: 'danger',
     },
-    { label: 'Tasa de resolución', value: `${kpis.resolutionRate}%`, tone: 'success' },
+    {
+      label: 'Tasa de resolución',
+      value: `${kpis.resolutionRate}%`,
+      tone: 'success',
+    },
     { label: 'Tasa de cancelación', value: `${kpis.cancellationRate}%` },
     {
       label: 'Prom. resolución (h)',
@@ -282,7 +286,10 @@ export async function buildReportsExcel(
   return Buffer.from(buffer);
 }
 
-function addBreakdownSheet(workbook: ExcelJS.Workbook, data: ReportsExportData) {
+function addBreakdownSheet(
+  workbook: ExcelJS.Workbook,
+  data: ReportsExportData,
+) {
   const sheet = workbook.addWorksheet('Desgloses', {
     properties: { tabColor: { argb: `FF${BRAND.primary}` } },
   });
@@ -303,7 +310,7 @@ function addBreakdownSheet(workbook: ExcelJS.Workbook, data: ReportsExportData) 
     4,
     'Por estado',
     data.byStatus.map((r) => ({
-      name: STATUS_LABELS[r.status] ?? r.status,
+      name: data.statusLabels[r.status] ?? r.status,
       count: r.count,
     })),
   );
@@ -543,8 +550,7 @@ type PdfFonts = {
 };
 
 function resolvePdfFonts(): PdfFonts {
-  const useUnicode =
-    existsSync(DEJAVU_REGULAR) && existsSync(DEJAVU_BOLD);
+  const useUnicode = existsSync(DEJAVU_REGULAR) && existsSync(DEJAVU_BOLD);
   return {
     regular: useUnicode ? 'Regular' : 'Helvetica',
     bold: useUnicode ? 'Bold' : 'Helvetica-Bold',
@@ -591,9 +597,7 @@ export async function buildReportsPdf(
 
   // —— Header band ——
   doc.rect(0, 0, pageW, 88).fill(`#${BRAND.primary}`);
-  doc
-    .rect(0, 88, pageW, 4)
-    .fill(`#${BRAND.accent}`);
+  doc.rect(0, 88, pageW, 4).fill(`#${BRAND.accent}`);
 
   doc
     .fillColor('#FFFFFF')
@@ -650,12 +654,8 @@ export async function buildReportsPdf(
     const x = marginX + col * (cardW + gap);
     const cy = y + row * (cardH + gap);
 
-    doc
-      .roundedRect(x, cy, cardW, cardH, 6)
-      .fill(`#${BRAND.surface}`);
-    doc
-      .roundedRect(x, cy, 4, cardH, 2)
-      .fill(`#${toneHex(card.tone)}`);
+    doc.roundedRect(x, cy, cardW, cardH, 6).fill(`#${BRAND.surface}`);
+    doc.roundedRect(x, cy, 4, cardH, 2).fill(`#${toneHex(card.tone)}`);
 
     doc
       .fillColor(`#${BRAND.muted}`)
@@ -681,13 +681,8 @@ export async function buildReportsPdf(
   // Remaining KPIs as compact row
   const rest = kpiRows(data).slice(8);
   if (rest.length) {
-    doc
-      .fillColor(`#${BRAND.muted}`)
-      .font(fonts.regular)
-      .fontSize(9);
-    const restLine = rest
-      .map((r) => `${r.label}: ${r.value}`)
-      .join('   ·   ');
+    doc.fillColor(`#${BRAND.muted}`).font(fonts.regular).fontSize(9);
+    const restLine = rest.map((r) => `${r.label}: ${r.value}`).join('   ·   ');
     doc.text(fonts.t(restLine), marginX, y, { width: contentW });
     y += 22;
   }
@@ -701,7 +696,7 @@ export async function buildReportsPdf(
     {
       title: 'Estado',
       items: data.byStatus.map((r) => ({
-        label: STATUS_LABELS[r.status] ?? r.status,
+        label: data.statusLabels[r.status] ?? r.status,
         count: r.count,
       })),
     },
@@ -844,12 +839,10 @@ export async function buildReportsPdf(
         width: contentW * 0.5,
         align: 'left',
       });
-    doc.text(
-      fonts.t(`Página ${i + 1} de ${range.count}`),
-      marginX,
-      footerY,
-      { width: contentW, align: 'right' },
-    );
+    doc.text(fonts.t(`Página ${i + 1} de ${range.count}`), marginX, footerY, {
+      width: contentW,
+      align: 'right',
+    });
   }
 
   doc.end();
@@ -913,9 +906,7 @@ function drawBarBlock(
   title: string,
   items: { label: string; count: number }[],
 ) {
-  doc
-    .roundedRect(x, y, w, 108, 6)
-    .fill(`#${BRAND.surface}`);
+  doc.roundedRect(x, y, w, 108, 6).fill(`#${BRAND.surface}`);
 
   doc
     .fillColor(`#${BRAND.primary}`)
@@ -942,9 +933,7 @@ function drawBarBlock(
       });
 
     const barW = Math.max(4, (item.count / max) * barMax);
-    doc
-      .roundedRect(x + 74, iy + 2, barW, 8, 2)
-      .fill(`#${BRAND.accent}`);
+    doc.roundedRect(x + 74, iy + 2, barW, 8, 2).fill(`#${BRAND.accent}`);
 
     doc
       .fillColor(`#${BRAND.text}`)
@@ -991,8 +980,8 @@ function drawTable(
         .fillColor('#FFFFFF')
         .font(fonts.bold)
         .fontSize(8)
-        .text(fonts.t(h), colXs[i]! + 6, hy + 5, {
-          width: w * ratios[i]! - 10,
+        .text(fonts.t(h), colXs[i] + 6, hy + 5, {
+          width: w * ratios[i] - 10,
         });
     });
   };
@@ -1022,14 +1011,14 @@ function drawTable(
       doc.rect(x, y, w, rowH).fill('#FFFFFF');
     }
 
-    rows[i]!.forEach((cell, ci) => {
+    rows[i].forEach((cell, ci) => {
       const align = ci === 0 ? 'left' : 'right';
       doc
         .fillColor(`#${BRAND.text}`)
         .font(fonts.regular)
         .fontSize(8)
-        .text(fonts.t(cell), colXs[ci]! + 6, y + 5, {
-          width: w * ratios[ci]! - 12,
+        .text(fonts.t(cell), colXs[ci] + 6, y + 5, {
+          width: w * ratios[ci] - 12,
           align,
           height: 12,
           ellipsis: true,
@@ -1070,9 +1059,7 @@ function drawMiniTrend(
     const resolvedH = (point.resolved / max) * chartH;
     const base = y + 8 + chartH;
 
-    doc
-      .rect(bx, base - createdH, barW, createdH)
-      .fill(`#${BRAND.accent}`);
+    doc.rect(bx, base - createdH, barW, createdH).fill(`#${BRAND.accent}`);
     doc
       .rect(bx + barW + 1, base - resolvedH, barW, resolvedH)
       .fill(`#${BRAND.success}`);

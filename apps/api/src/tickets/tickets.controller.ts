@@ -28,7 +28,7 @@ import { SetTicketLabelsDto } from '../labels/dto/set-ticket-labels.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, TicketCategory, TicketSeverity, TicketStatus } from '@prisma/client';
+import { Role, TicketCategory, TicketSeverity } from '@prisma/client';
 import { SWAGGER_BEARER } from '../swagger';
 import type { RequestWithUser } from '../auth/types/request-with-user';
 
@@ -50,7 +50,11 @@ export class TicketsController {
   @ApiOperation({ summary: 'Listar tickets (filtrado por rol)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'perPage', required: false, type: Number })
-  @ApiQuery({ name: 'status', required: false, enum: TicketStatus })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Key de estado del workflow',
+  })
   @ApiQuery({ name: 'priority', required: false })
   @ApiQuery({ name: 'severity', required: false, enum: TicketSeverity })
   @ApiQuery({ name: 'category', required: false, enum: TicketCategory })
@@ -66,7 +70,11 @@ export class TicketsController {
     required: false,
     description: 'Búsqueda en título, descripción y ubicación',
   })
-  @ApiQuery({ name: 'labelId', required: false, description: 'Filtrar por etiqueta' })
+  @ApiQuery({
+    name: 'labelId',
+    required: false,
+    description: 'Filtrar por etiqueta',
+  })
   @ApiQuery({
     name: 'location',
     required: false,
@@ -86,7 +94,7 @@ export class TicketsController {
     @Req() req: RequestWithUser,
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
-    @Query('status') status?: TicketStatus,
+    @Query('status') status?: string,
     @Query('priority') priority?: string,
     @Query('severity') severity?: TicketSeverity,
     @Query('category') category?: TicketCategory,

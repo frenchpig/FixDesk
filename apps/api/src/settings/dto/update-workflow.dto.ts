@@ -1,23 +1,23 @@
-// Responsabilidad: DTO para actualizar la definición de workflow del sistema
-// Usado por: SettingsController (PATCH /settings/workflow)
-// NO hace: validación de negocio (assertValidWorkflowConfig en el service)
+// Responsabilidad: DTOs del CRUD de estados de workflow y ajustes globales
+// Usado por: SettingsController (POST/PATCH/DELETE /settings/workflow*)
+// NO hace: validación de negocio (consistencia de estados en SettingsService)
 //
 // No existe nest g dto en este proyecto; archivo creado como excepción justificada.
 
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
   IsIn,
-  IsObject,
+  IsInt,
+  IsOptional,
   IsString,
+  MaxLength,
+  Min,
   MinLength,
-  ValidateNested,
 } from 'class-validator';
-import { TicketStatus } from '@prisma/client';
+import { StatusSemantic } from '@prisma/client';
 
 const BADGE_VARIANTS = [
   'default',
@@ -27,57 +27,107 @@ const BADGE_VARIANTS = [
   'danger',
 ] as const;
 
-class WorkflowStateDto {
-  @ApiProperty({ enum: TicketStatus })
-  @IsEnum(TicketStatus)
-  id: TicketStatus;
-
-  @ApiProperty({ example: 'Abierto' })
+export class CreateWorkflowStateDto {
+  @ApiProperty({ example: 'En revisión' })
   @IsString()
-  @MinLength(1)
+  @MinLength(2)
+  @MaxLength(40)
   label: string;
 
-  @ApiProperty()
-  @IsBoolean()
-  finalized: boolean;
+  @ApiProperty({ enum: StatusSemantic })
+  @IsEnum(StatusSemantic)
+  semantic: StatusSemantic;
 
-  @ApiProperty()
-  @IsBoolean()
-  kanban: boolean;
-
-  @ApiProperty({ enum: BADGE_VARIANTS })
+  @ApiPropertyOptional({ enum: BADGE_VARIANTS })
+  @IsOptional()
   @IsIn(BADGE_VARIANTS)
-  badgeVariant: (typeof BADGE_VARIANTS)[number];
+  badgeVariant?: (typeof BADGE_VARIANTS)[number];
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  kanban?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  finalized?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  noteRequiredOnEnter?: boolean;
+
+  @ApiPropertyOptional({ type: [String], description: 'Keys destino' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedTargets?: string[];
 }
 
-class WorkflowNoteRequiredDto {
-  @ApiProperty({ enum: TicketStatus, isArray: true })
-  @IsArray()
-  @IsEnum(TicketStatus, { each: true })
-  entering: TicketStatus[];
+export class UpdateWorkflowStateDto {
+  @ApiPropertyOptional({ example: 'En revisión' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(40)
+  label?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ enum: StatusSemantic })
+  @IsOptional()
+  @IsEnum(StatusSemantic)
+  semantic?: StatusSemantic;
+
+  @ApiPropertyOptional({ enum: BADGE_VARIANTS })
+  @IsOptional()
+  @IsIn(BADGE_VARIANTS)
+  badgeVariant?: (typeof BADGE_VARIANTS)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
-  leavingFinalized: boolean;
+  kanban?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  finalized?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  noteRequiredOnEnter?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ type: [String], description: 'Keys destino' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedTargets?: string[];
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  order?: number;
 }
 
 export class UpdateWorkflowDto {
-  @ApiProperty({ type: [WorkflowStateDto] })
-  @IsArray()
-  @ArrayMinSize(5)
-  @ValidateNested({ each: true })
-  @Type(() => WorkflowStateDto)
-  states: WorkflowStateDto[];
-
-  @ApiProperty({
-    description: 'Mapa estado → estados destino permitidos',
-    example: { OPEN: ['IN_PROGRESS', 'PENDING'] },
+  @ApiPropertyOptional({
+    description: 'Exigir nota al salir de un estado finalizado',
   })
-  @IsObject()
-  transitions: Record<string, TicketStatus[]>;
+  @IsOptional()
+  @IsBoolean()
+  workflowNoteOnReopen?: boolean;
 
-  @ApiProperty({ type: WorkflowNoteRequiredDto })
-  @ValidateNested()
-  @Type(() => WorkflowNoteRequiredDto)
-  noteRequired: WorkflowNoteRequiredDto;
+  @ApiPropertyOptional({
+    description: 'Key del estado default para tickets nuevos',
+  })
+  @IsOptional()
+  @IsString()
+  defaultStateKey?: string;
 }

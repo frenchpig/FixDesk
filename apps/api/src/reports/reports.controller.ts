@@ -7,7 +7,12 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { ReportQueryDto } from './dto/report-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -65,10 +70,7 @@ export class ReportsController {
   })
   @ApiProduces('application/pdf')
   @Header('Content-Type', 'application/pdf')
-  async exportPdf(
-    @Query() query: ReportQueryDto,
-    @Req() req: RequestWithUser,
-  ) {
+  async exportPdf(@Query() query: ReportQueryDto, @Req() req: RequestWithUser) {
     const file = await this.reportsService.exportPdf(req.user, query);
     return new StreamableFile(file.buffer, {
       type: file.contentType,

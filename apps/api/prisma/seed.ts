@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { DEFAULT_WORKFLOW_STATES } from '../src/tickets/ticket-transitions';
 
 const prisma = new PrismaClient();
 
@@ -102,6 +103,16 @@ async function main() {
   });
 
   console.log(`  SLA objetivo: ${slaTargetHours}h`);
+
+  for (const state of DEFAULT_WORKFLOW_STATES) {
+    await prisma.workflowState.upsert({
+      where: { key: state.key },
+      update: {},
+      create: state,
+    });
+  }
+
+  console.log(`  ${DEFAULT_WORKFLOW_STATES.length} estados de workflow seed`);
 }
 
 main()

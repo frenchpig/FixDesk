@@ -5,16 +5,14 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import {
-  TicketCategory,
-  TicketPriority,
-  TicketSeverity,
-  TicketStatus,
-} from '@prisma/client';
+import { TicketCategory, TicketPriority, TicketSeverity } from '@prisma/client';
 
 export class UpdateTicketStatusDto {
-  @IsEnum(TicketStatus)
-  status: TicketStatus;
+  /** Key de estado del workflow; se valida contra estados activos en el service. */
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  status: string;
 
   @IsOptional()
   @IsString()
