@@ -1,11 +1,17 @@
-// Responsabilidad: leer y persistir configuración global (SLA)
+// Responsabilidad: leer y persistir configuración global (SLA + workflow)
 // Usado por: SettingsController, ReportsService
 // NO hace: calcular métricas de cumplimiento ni UI
 
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveSlaTargetHoursFromEnv } from '../config/sla.config';
+import {
+  assertValidWorkflowConfig,
+  buildDefaultWorkflow,
+  type WorkflowDefinition,
+} from '../tickets/ticket-transitions';
 
 const SETTINGS_ID = 'default';
 
@@ -81,6 +87,75 @@ export class SettingsService {
         slaTargetHours: row.slaTargetHours,
         updatedAt: row.updatedAt.toISOString(),
         updatedById: row.updatedById,
+      },
+    };
+  }
+
+  /**
+   * Devuelve el workflow resuelto (DB o defaults) para edición admin.
+   */
+  async getWorkflowSettings() {
+    const row = await this.prisma.systemSettings.findUnique({
+      where: { id: SETTINGS_ID },
+      select: { workflowConfig: true, updatedAt: true, updatedById: true },
+    });
+
+    let workflow: WorkflowDefinition;
+    try {
+      workflow = row?.workflowConfig
+        ? assertValidWorkflowConfig(row.workflowConfig)
+        : buildDefaultWorkflow();
+    } catch {
+      workflow = buildDefaultWorkflow();
+    }
+
+    return {
+      data: {
+        ...workflow,
+        updatedAt: row?.updatedAt?.toISOString() ?? null,
+        updatedById: row?.updatedById ?? null,
+        isCustom: row?.workflowConfig != null,
+      },
+    };
+  }
+
+  /**
+   * Persiste la definición de workflow (solo ADMIN).
+   */
+  async updateWorkflowConfig(raw: unknown, userId: string) {
+    let workflow: WorkflowDefinition;
+    try {
+      workflow = assertValidWorkflowConfig(raw);
+    } catch (err) {
+      throw new BadRequestException(
+        err instanceof Error ? err.message : 'workflowConfig inválido',
+      );
+    }
+
+    const row = await this.prisma.systemSettings.upsert({
+      where: { id: SETTINGS_ID },
+      create: {
+        id: SETTINGS_ID,
+        workflowConfig: workflow as unknown as Prisma.InputJsonValue,
+        updatedById: userId,
+      },
+      update: {
+        workflowConfig: workflow as unknown as Prisma.InputJsonValue,
+        updatedById: userId,
+      },
+      select: {
+        workflowConfig: true,
+        updatedAt: true,
+        updatedById: true,
+      },
+    });
+
+    return {
+      data: {
+        ...workflow,
+        updatedAt: row.updatedAt.toISOString(),
+        updatedById: row.updatedById,
+        isCustom: true,
       },
     };
   }

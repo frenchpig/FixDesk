@@ -1,22 +1,18 @@
-import { Badge } from '@/components/atoms/Badge';
-import { STATUS_LABELS } from '@/lib/constants';
-import type { TicketStatus } from '@/types';
+'use client';
 
-const statusVariant: Record<
-  TicketStatus,
-  'default' | 'primary' | 'success' | 'warning' | 'danger'
-> = {
-  OPEN: 'default',
-  IN_PROGRESS: 'primary',
-  PENDING: 'warning',
-  RESOLVED: 'success',
-  CANCELLED: 'danger',
-};
+import { Badge } from '@/components/atoms/Badge';
+import { useWorkflow } from '@/lib/workflow-context';
+import type { TicketStatus } from '@/types';
 
 interface StatusBadgeProps {
   status: TicketStatus;
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  return <Badge variant={statusVariant[status]}>{STATUS_LABELS[status]}</Badge>;
+  const { getStatusLabel, getStatusBadgeVariant } = useWorkflow();
+  return (
+    <Badge variant={getStatusBadgeVariant(status)}>
+      {getStatusLabel(status)}
+    </Badge>
+  );
 }

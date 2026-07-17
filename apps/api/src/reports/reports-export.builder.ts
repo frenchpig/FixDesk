@@ -11,14 +11,7 @@ import {
   TicketSeverity,
   TicketStatus,
 } from '@prisma/client';
-
-const STATUS_LABELS: Record<TicketStatus, string> = {
-  OPEN: 'Abierto',
-  IN_PROGRESS: 'En progreso',
-  PENDING: 'Pendiente',
-  RESOLVED: 'Resuelto',
-  CANCELLED: 'Cancelado',
-};
+import { STATUS_LABELS } from '../tickets/ticket-transitions';
 
 const CATEGORY_LABELS: Record<TicketCategory, string> = {
   HARDWARE: 'Hardware',

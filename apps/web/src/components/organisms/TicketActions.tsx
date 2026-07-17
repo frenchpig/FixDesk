@@ -10,11 +10,7 @@ import { Card } from '@/components/atoms/Card';
 import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import {
-  ALLOWED_TRANSITIONS,
-  STATUS_LABELS,
-  isNoteRequiredForTransition,
-} from '@/lib/constants';
+import { useWorkflow } from '@/lib/workflow-context';
 import type { Ticket, TicketStatus } from '@/types';
 
 interface TicketActionsProps {
@@ -22,8 +18,12 @@ interface TicketActionsProps {
   onUpdate: () => void;
 }
 
-function noteFieldLabel(from: TicketStatus, to: TicketStatus): string {
-  if (from === 'RESOLVED' || from === 'CANCELLED') {
+function noteFieldLabel(
+  from: TicketStatus,
+  to: TicketStatus,
+  fromFinalized: boolean,
+): string {
+  if (fromFinalized) {
     return 'Razón de reapertura (obligatoria)';
   }
   if (to === 'PENDING') {
@@ -38,9 +38,15 @@ function noteFieldLabel(from: TicketStatus, to: TicketStatus): string {
 export function TicketActions({ ticket, onUpdate }: TicketActionsProps) {
   const { token } = useAuth();
   const router = useRouter();
+  const {
+    getStatusLabel,
+    getAllowedTransitions,
+    isNoteRequiredForTransition,
+    isFinalizedStatus,
+  } = useWorkflow();
   const nextStatuses = useMemo(
-    () => ALLOWED_TRANSITIONS[ticket.status],
-    [ticket.status],
+    () => getAllowedTransitions(ticket.status),
+    [getAllowedTransitions, ticket.status],
   );
   const [status, setStatus] = useState<TicketStatus>(
     () => nextStatuses[0] ?? ticket.status,
@@ -56,8 +62,7 @@ export function TicketActions({ ticket, onUpdate }: TicketActionsProps) {
   }, [ticket.status, ticket.id, nextStatuses]);
 
   const noteRequired = isNoteRequiredForTransition(ticket.status, status);
-  const isFinalized =
-    ticket.status === 'RESOLVED' || ticket.status === 'CANCELLED';
+  const isFinalized = isFinalizedStatus(ticket.status);
 
   async function handleStatusChange() {
     setError('');
@@ -106,7 +111,7 @@ export function TicketActions({ ticket, onUpdate }: TicketActionsProps) {
       <Text variant="h3">Acciones del técnico</Text>
 
       <Text variant="muted">
-        Estado actual: {STATUS_LABELS[ticket.status]}
+        Estado actual: {getStatusLabel(ticket.status)}
       </Text>
 
       {isFinalized && (
@@ -134,14 +139,18 @@ export function TicketActions({ ticket, onUpdate }: TicketActionsProps) {
             >
               {nextStatuses.map((s) => (
                 <option key={s} value={s}>
-                  {STATUS_LABELS[s]}
+                  {getStatusLabel(s)}
                 </option>
               ))}
             </Select>
           </FormField>
 
           <FormField
-            label={noteFieldLabel(ticket.status, status)}
+            label={noteFieldLabel(
+              ticket.status,
+              status,
+              isFinalizedStatus(ticket.status),
+            )}
             htmlFor="note"
           >
             <Textarea

@@ -2,7 +2,7 @@
 
 import { TicketCard } from '@/components/molecules/TicketCard';
 import { Text } from '@/components/atoms/Text';
-import { STATUS_LABELS, KANBAN_COLUMNS } from '@/lib/constants';
+import { useWorkflow } from '@/lib/workflow-context';
 import type { Ticket } from '@/types';
 
 interface KanbanBoardProps {
@@ -11,14 +11,17 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ tickets, basePath = '/dashboard/tickets' }: KanbanBoardProps) {
+  const { getKanbanColumns, getStatusLabel } = useWorkflow();
+  const columns = getKanbanColumns();
+
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {KANBAN_COLUMNS.map((status) => {
+      {columns.map((status) => {
         const columnTickets = tickets.filter((t) => t.status === status);
         return (
           <div key={status} className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <Text variant="h3">{STATUS_LABELS[status]}</Text>
+              <Text variant="h3">{getStatusLabel(status)}</Text>
               <Text variant="caption">{columnTickets.length}</Text>
             </div>
             <div className="flex flex-col gap-3">

@@ -23,23 +23,12 @@ import {
   type Prisma,
   type TicketCategory,
 } from '@prisma/client';
-import {
-  ALLOWED_TRANSITIONS,
-  CATEGORY_AREA_MAP,
-  isNoteRequiredForTransition,
-} from './ticket-transitions';
+import { CATEGORY_AREA_MAP } from './ticket-transitions';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsRealtimeGateway } from '../notifications/notifications-realtime/notifications-realtime.gateway';
 import { LabelsService } from '../labels/labels.service';
+import { WorkflowService } from '../workflow/workflow.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
-
-const STATUS_LABELS: Record<TicketStatus, string> = {
-  OPEN: 'Abierto',
-  IN_PROGRESS: 'En progreso',
-  PENDING: 'Pendiente',
-  RESOLVED: 'Resuelto',
-  CANCELLED: 'Cancelado',
-};
 
 const CATEGORY_LABELS: Record<TicketCategory, string> = {
   HARDWARE: 'Hardware',
@@ -86,6 +75,7 @@ export class TicketsService {
     private readonly notificationsService: NotificationsService,
     private readonly labelsService: LabelsService,
     private readonly realtimeGateway: NotificationsRealtimeGateway,
+    private readonly workflowService: WorkflowService,
   ) {}
 
   async create(dto: CreateTicketDto, user: JwtPayload) {
@@ -295,14 +285,26 @@ export class TicketsService {
     const ticket = await this.getTicketOrThrow(id);
     this.assertTechnicianAccess(ticket, user);
 
-    if (!ALLOWED_TRANSITIONS[ticket.status].includes(dto.status)) {
+    const workflow = await this.workflowService.getResolvedWorkflow();
+
+    if (
+      !this.workflowService.isTransitionAllowed(
+        workflow,
+        ticket.status,
+        dto.status,
+      )
+    ) {
       throw new BadRequestException(
         `Transición inválida: ${ticket.status} → ${dto.status}`,
       );
     }
 
     if (
-      isNoteRequiredForTransition(ticket.status, dto.status) &&
+      this.workflowService.isNoteRequired(
+        workflow,
+        ticket.status,
+        dto.status,
+      ) &&
       !dto.note?.trim()
     ) {
       throw new BadRequestException(
@@ -333,7 +335,7 @@ export class TicketsService {
       {
         type: NotificationType.STATUS_CHANGED,
         title: `Estado actualizado: «${updated.title}»`,
-        body: `${STATUS_LABELS[ticket.status]} → ${STATUS_LABELS[dto.status]}`,
+        body: `${this.workflowService.getStatusLabel(workflow, ticket.status)} → ${this.workflowService.getStatusLabel(workflow, dto.status)}`,
         ticketId: id,
         actorId: user.sub,
       },

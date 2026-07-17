@@ -11,6 +11,7 @@ import { ReportsModule } from './reports/reports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LabelsModule } from './labels/labels.module';
 import { SettingsModule } from './settings/settings.module';
+import { WorkflowModule } from './workflow/workflow.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SettingsModule } from './settings/settings.module';
     NotificationsModule,
     LabelsModule,
     SettingsModule,
+    WorkflowModule,
   ],
   controllers: [AppController],
 })

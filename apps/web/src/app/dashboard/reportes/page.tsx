@@ -20,10 +20,10 @@ import {
   CATEGORY_LABELS,
   PRIORITY_LABELS,
   SEVERITY_LABELS,
-  STATUS_LABELS,
 } from '@/lib/constants';
 import { resolveDateRange } from '@/lib/report-utils';
 import { useAuth } from '@/lib/auth-context';
+import { useWorkflow } from '@/lib/workflow-context';
 import type {
   ReportFilterOptions,
   ReportFilters,
@@ -62,6 +62,7 @@ function buildQuery(filters: ReportFilters): string {
 
 export default function ReportesPage() {
   const { token } = useAuth();
+  const { getStatusLabel } = useWorkflow();
   const [draftFilters, setDraftFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] =
     useState<ReportFilters>(DEFAULT_FILTERS);
@@ -202,7 +203,7 @@ export default function ReportesPage() {
               <ReportsBarChart
                 title="Por estado"
                 items={metrics.byStatus.map((r) => ({
-                  label: STATUS_LABELS[r.status],
+                  label: getStatusLabel(r.status),
                   value: r.count,
                 }))}
               />

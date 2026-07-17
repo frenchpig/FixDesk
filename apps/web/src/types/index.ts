@@ -188,3 +188,30 @@ export interface HistorialFilters {
   dateFrom: string;
   dateTo: string;
 }
+
+/** Estado del workflow expuesto por GET /workflow */
+export type WorkflowBadgeVariant =
+  | 'default'
+  | 'primary'
+  | 'success'
+  | 'warning'
+  | 'danger';
+
+export interface WorkflowState {
+  id: TicketStatus;
+  label: string;
+  finalized: boolean;
+  kanban: boolean;
+  badgeVariant: WorkflowBadgeVariant;
+}
+
+export interface WorkflowNoteRequired {
+  entering: TicketStatus[];
+  leavingFinalized: boolean;
+}
+
+export interface WorkflowPayload {
+  states: WorkflowState[];
+  transitions: Record<TicketStatus, TicketStatus[]>;
+  noteRequired: WorkflowNoteRequired;
+}

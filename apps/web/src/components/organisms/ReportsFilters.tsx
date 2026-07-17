@@ -9,8 +9,8 @@ import {
   CATEGORY_LABELS,
   PRIORITY_LABELS,
   SEVERITY_LABELS,
-  STATUS_LABELS,
 } from '@/lib/constants';
+import { useWorkflow } from '@/lib/workflow-context';
 import type {
   DatePreset,
   ReportFilterOptions,
@@ -45,6 +45,8 @@ export function ReportsFilters({
   onApply,
   onReset,
 }: ReportsFiltersProps) {
+  const { listStatuses, getStatusLabel } = useWorkflow();
+
   function set<K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) {
     onChange({ ...filters, [key]: value });
   }
@@ -131,9 +133,9 @@ export function ReportsFilters({
             aria-label="Estado"
           >
             <option value="">Todos</option>
-            {(Object.keys(STATUS_LABELS) as TicketStatus[]).map((s) => (
+            {listStatuses().map((s) => (
               <option key={s} value={s}>
-                {STATUS_LABELS[s]}
+                {getStatusLabel(s)}
               </option>
             ))}
           </Select>
