@@ -81,9 +81,10 @@ export function SettingsMenu() {
       {isVisible && (
         <div
           role="menu"
+          data-floating-panel
           className={cn(
             'absolute right-0 top-full z-[100] mt-2 w-56',
-            'rounded-theme border border-border overlay-surface p-1 shadow-theme',
+            'rounded-theme border border-border bg-surface p-1 shadow-theme',
             animationsEnabled &&
               (closing ? 'animate-menu-panel-out' : 'animate-menu-panel-in'),
           )}

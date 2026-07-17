@@ -139,7 +139,7 @@
   --glass-bg-panel-hover: rgba(255, 255, 255, 0.12);
   --glass-bg-control: rgba(255, 255, 255, 0.06);
   --glass-bg-control-hover: rgba(255, 255, 255, 0.1);
-  --glass-bg-floating: rgba(22, 22, 38, 0.92);
+  --glass-bg-floating: #161626;
   --glass-blur-floating: 24px;
   --glass-shine: linear-gradient(
     180deg,
@@ -156,7 +156,7 @@
   --glass-bg-panel-hover: rgba(255, 255, 255, 0.16);
   --glass-bg-control: rgba(255, 255, 255, 0.08);
   --glass-bg-control-hover: rgba(255, 255, 255, 0.12);
-  --glass-bg-floating: rgba(255, 255, 255, 0.92);
+  --glass-bg-floating: #ffffff;
 }
 
 /* Sin capas opacas entre blobs y contenido */
@@ -164,6 +164,13 @@
 [data-theme='glassmorphism'] .min-h-screen {
   background-color: transparent;
 }
+
+/*
+ * Capas glass (de atrás hacia adelante):
+ * 1. Control — input/textarea/button.border (vidrio liviano)
+ * 2. Panel — data-glass-card / overlay-surface en flujo (translúcido)
+ * 3. Floating — data-floating-panel / data-modal-panel (opaco sólido; menús, modales)
+ */
 
 /* Paneles / cards / overlays — blur en el elemento (no en pseudo z-index:-1) */
 [data-theme='glassmorphism'] [data-glass-card],
@@ -194,14 +201,31 @@
 }
 
 [data-theme='glassmorphism'] .overlay-surface.absolute,
+[data-theme='glassmorphism'] [data-floating-panel],
 [data-theme='glassmorphism'] [data-modal-panel] {
-  overflow: hidden;
   background-color: var(--glass-bg-floating) !important;
-  backdrop-filter: blur(var(--glass-blur-floating)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--glass-blur-floating)) saturate(180%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.28),
     var(--token-shadow);
+}
+
+/* Modal: blur suave opcional; floating (Select/menús) queda sólido sin vidrio */
+[data-theme='glassmorphism'] [data-modal-panel] {
+  backdrop-filter: blur(var(--glass-blur-floating)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-floating)) saturate(180%);
+}
+
+/* Modal recorta shine; floating conserva overflow del componente (ej. scroll del listbox) */
+[data-theme='glassmorphism'] .overlay-surface.absolute,
+[data-theme='glassmorphism'] [data-modal-panel] {
+  overflow: hidden;
+}
+
+/* Floating conserva position:absolute del componente; solo modal fuerza relative */
+[data-theme='glassmorphism'] [data-floating-panel] {
+  isolation: isolate;
 }
 
 [data-theme='glassmorphism'] [data-modal-panel] {
@@ -211,6 +235,7 @@
 
 [data-theme='glassmorphism'] [data-glass-card]::before,
 [data-theme='glassmorphism'] .overlay-surface::before,
+[data-theme='glassmorphism'] [data-floating-panel]::before,
 [data-theme='glassmorphism'] [data-modal-panel]::before {
   content: '';
   position: absolute;
@@ -221,8 +246,9 @@
   pointer-events: none;
 }
 
-/* Solo overlays: no forzar z-index en hijos de card (rompía Select/listbox) */
+/* Solo floating: no forzar z-index en hijos de card (rompía Select/listbox) */
 [data-theme='glassmorphism'] .overlay-surface > *,
+[data-theme='glassmorphism'] [data-floating-panel] > *,
 [data-theme='glassmorphism'] [data-modal-panel] > * {
   position: relative;
   z-index: 1;
@@ -294,6 +320,20 @@
   -webkit-backdrop-filter: blur(calc(var(--glass-blur-control) + 2px)) saturate(180%);
 }
 
+/* Select: trigger sólido (fondo de página, nunca surface glass) */
+[data-theme='glassmorphism'] button[data-select-trigger],
+[data-theme='glassmorphism'] button[data-select-trigger]:hover {
+  background-color: var(--token-background) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme='glassmorphism'] [data-glass-card] button[data-select-trigger] {
+  background-color: var(--token-background) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Controles dentro de cards: sin segundo backdrop-filter (evita efecto lavado) */
 [data-theme='glassmorphism'] [data-glass-card] input:not([type='hidden']),
 [data-theme='glassmorphism'] [data-glass-card] textarea,
@@ -304,7 +344,9 @@
 
 [data-performance-mode='true'] [data-glass-card],
 [data-performance-mode='true'] .overlay-surface,
-[data-performance-mode='true'] [data-glass-surface] {
+[data-performance-mode='true'] [data-glass-surface],
+[data-performance-mode='true'] [data-floating-panel],
+[data-performance-mode='true'] [data-modal-panel] {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -315,6 +357,7 @@
 }
 
 [data-performance-mode='true'] .overlay-surface.absolute,
+[data-performance-mode='true'] [data-floating-panel],
 [data-performance-mode='true'] [data-modal-panel] {
   background-color: var(--glass-bg-floating) !important;
 }
