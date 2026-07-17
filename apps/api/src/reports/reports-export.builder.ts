@@ -8,6 +8,7 @@ import PDFDocument from 'pdfkit';
 import {
   TicketCategory,
   TicketPriority,
+  TicketSeverity,
   TicketStatus,
 } from '@prisma/client';
 
@@ -30,6 +31,13 @@ const PRIORITY_LABELS: Record<TicketPriority, string> = {
   LOW: 'Baja',
   MEDIUM: 'Media',
   HIGH: 'Alta',
+};
+
+const SEVERITY_LABELS: Record<TicketSeverity, string> = {
+  LOW: 'Baja',
+  MEDIUM: 'Media',
+  HIGH: 'Alta',
+  CRITICAL: 'Crítica',
 };
 
 const DEJAVU_REGULAR = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
@@ -61,6 +69,7 @@ export type ReportsExportData = {
     inProgress: number;
     pending: number;
     highPriorityOpen: number;
+    criticalSeverityOpen: number;
     resolutionRate: number;
     cancellationRate: number;
     avgResolutionHours: number | null;
@@ -71,6 +80,7 @@ export type ReportsExportData = {
   byStatus: { status: TicketStatus; count: number }[];
   byCategory: { category: TicketCategory; count: number }[];
   byPriority: { priority: TicketPriority; count: number }[];
+  bySeverity: { severity: TicketSeverity; count: number }[];
   byArea: { areaId: string | null; areaName: string; count: number }[];
   byTechnician: {
     userId: string;
@@ -113,6 +123,11 @@ function kpiRows(data: ReportsExportData): Array<{
     { label: 'En progreso', value: kpis.inProgress },
     { label: 'Pendientes', value: kpis.pending, tone: 'warning' },
     { label: 'Alta prioridad abiertos', value: kpis.highPriorityOpen, tone: 'danger' },
+    {
+      label: 'Severidad crítica abiertos',
+      value: kpis.criticalSeverityOpen,
+      tone: 'danger',
+    },
     { label: 'Tasa de resolución', value: `${kpis.resolutionRate}%`, tone: 'success' },
     { label: 'Tasa de cancelación', value: `${kpis.cancellationRate}%` },
     {
@@ -316,6 +331,16 @@ function addBreakdownSheet(workbook: ExcelJS.Workbook, data: ReportsExportData) 
     'Por prioridad',
     data.byPriority.map((r) => ({
       name: PRIORITY_LABELS[r.priority] ?? r.priority,
+      count: r.count,
+    })),
+  );
+  col = writeNamedCountTable(
+    sheet,
+    col,
+    4,
+    'Por severidad',
+    data.bySeverity.map((r) => ({
+      name: SEVERITY_LABELS[r.severity] ?? r.severity,
       count: r.count,
     })),
   );
@@ -698,6 +723,13 @@ export async function buildReportsPdf(
       title: 'Prioridad',
       items: data.byPriority.map((r) => ({
         label: PRIORITY_LABELS[r.priority] ?? r.priority,
+        count: r.count,
+      })),
+    },
+    {
+      title: 'Severidad',
+      items: data.bySeverity.map((r) => ({
+        label: SEVERITY_LABELS[r.severity] ?? r.severity,
         count: r.count,
       })),
     },

@@ -107,6 +107,7 @@ export interface ReportKpis {
   inProgress: number;
   pending: number;
   highPriorityOpen: number;
+  criticalSeverityOpen: number;
   resolutionRate: number;
   cancellationRate: number;
   avgResolutionHours: number | null;
@@ -147,6 +148,7 @@ export interface ReportsMetrics {
   byStatus: { status: TicketStatus; count: number }[];
   byCategory: { category: TicketCategory; count: number }[];
   byPriority: { priority: TicketPriority; count: number }[];
+  bySeverity: { severity: TicketSeverity; count: number }[];
   byArea: ReportAreaItem[];
   byTechnician: ReportTechnicianItem[];
   byReporter: ReportReporterItem[];
@@ -168,6 +170,7 @@ export interface ReportFilters {
   category: TicketCategory | '';
   status: TicketStatus | '';
   priority: TicketPriority | '';
+  severity: TicketSeverity | '';
   areaId: string;
   assigneeId: string;
   reporterId: string;

@@ -7,6 +7,7 @@ import {
 import {
   TicketCategory,
   TicketPriority,
+  TicketSeverity,
   TicketStatus,
 } from '@prisma/client';
 
@@ -30,6 +31,10 @@ export class ReportQueryDto {
   @IsOptional()
   @IsEnum(TicketPriority)
   priority?: TicketPriority;
+
+  @IsOptional()
+  @IsEnum(TicketSeverity)
+  severity?: TicketSeverity;
 
   @IsOptional()
   @IsString()

@@ -55,9 +55,11 @@ export class ReportsService {
       inProgress,
       pending,
       highPriorityOpen,
+      criticalSeverityOpen,
       byStatus,
       byCategory,
       byPriority,
+      bySeverity,
       byAreaRaw,
       byAssigneeRaw,
       byReporterRaw,
@@ -92,6 +94,13 @@ export class ReportsService {
           status: { in: OPEN_STATUSES },
         },
       }),
+      this.prisma.ticket.count({
+        where: {
+          ...baseWhere,
+          severity: 'CRITICAL',
+          status: { in: OPEN_STATUSES },
+        },
+      }),
       this.prisma.ticket.groupBy({
         by: ['status'],
         where: { ...baseWhere, createdAt: { gte: dateFrom, lte: dateTo } },
@@ -104,6 +113,11 @@ export class ReportsService {
       }),
       this.prisma.ticket.groupBy({
         by: ['priority'],
+        where: { ...baseWhere, createdAt: { gte: dateFrom, lte: dateTo } },
+        _count: true,
+      }),
+      this.prisma.ticket.groupBy({
+        by: ['severity'],
         where: { ...baseWhere, createdAt: { gte: dateFrom, lte: dateTo } },
         _count: true,
       }),
@@ -232,6 +246,7 @@ export class ReportsService {
           inProgress,
           pending,
           highPriorityOpen,
+          criticalSeverityOpen,
           resolutionRate:
             created > 0 ? Math.round((resolved / created) * 100) : 0,
           cancellationRate:
@@ -251,6 +266,10 @@ export class ReportsService {
         })),
         byPriority: byPriority.map((r) => ({
           priority: r.priority,
+          count: r._count,
+        })),
+        bySeverity: bySeverity.map((r) => ({
+          severity: r.severity,
           count: r._count,
         })),
         byArea: byAreaRaw.map((r) => ({
@@ -521,6 +540,7 @@ export class ReportsService {
     if (query.category) and.push({ category: query.category });
     if (query.status) and.push({ status: query.status });
     if (query.priority) and.push({ priority: query.priority });
+    if (query.severity) and.push({ severity: query.severity });
     if (query.areaId) and.push({ areaId: query.areaId });
     if (query.assigneeId) and.push({ assigneeId: query.assigneeId });
     if (query.reporterId) and.push({ reporterId: query.reporterId });

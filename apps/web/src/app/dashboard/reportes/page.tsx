@@ -19,6 +19,7 @@ import { api } from '@/lib/api';
 import {
   CATEGORY_LABELS,
   PRIORITY_LABELS,
+  SEVERITY_LABELS,
   STATUS_LABELS,
 } from '@/lib/constants';
 import { resolveDateRange } from '@/lib/report-utils';
@@ -36,6 +37,7 @@ const DEFAULT_FILTERS: ReportFilters = {
   category: '',
   status: '',
   priority: '',
+  severity: '',
   areaId: '',
   assigneeId: '',
   reporterId: '',
@@ -51,6 +53,7 @@ function buildQuery(filters: ReportFilters): string {
   if (filters.category) params.set('category', filters.category);
   if (filters.status) params.set('status', filters.status);
   if (filters.priority) params.set('priority', filters.priority);
+  if (filters.severity) params.set('severity', filters.severity);
   if (filters.areaId) params.set('areaId', filters.areaId);
   if (filters.assigneeId) params.set('assigneeId', filters.assigneeId);
   if (filters.reporterId) params.set('reporterId', filters.reporterId);
@@ -214,6 +217,13 @@ export default function ReportesPage() {
                 title="Por prioridad"
                 items={metrics.byPriority.map((r) => ({
                   label: PRIORITY_LABELS[r.priority],
+                  value: r.count,
+                }))}
+              />
+              <ReportsBarChart
+                title="Por severidad"
+                items={metrics.bySeverity.map((r) => ({
+                  label: SEVERITY_LABELS[r.severity],
                   value: r.count,
                 }))}
               />

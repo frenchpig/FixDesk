@@ -86,6 +86,12 @@ export function ReportsKpiGrid({ kpis }: ReportsKpiGridProps) {
         accent="danger"
       />
       <KpiCard
+        label="Severidad crítica abierta"
+        value={kpis.criticalSeverityOpen}
+        icon={<AlertTriangle size={18} />}
+        accent="danger"
+      />
+      <KpiCard
         label="Tiempo medio resolución"
         value={formatHours(kpis.avgResolutionHours)}
         hint="Desde creación hasta cierre"
