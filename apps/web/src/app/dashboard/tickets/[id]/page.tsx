@@ -21,8 +21,14 @@ import { TicketLabelsEditor } from '@/components/organisms/TicketLabelsEditor';
 import { TicketDetailsEditor } from '@/components/organisms/TicketDetailsEditor';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useRealtimeEvent } from '@/hooks/useRealtimeEvent';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import type { Ticket, TicketHistoryEntry } from '@/types';
+
+interface TicketChangedEvent {
+  ticketId: string;
+  action: string;
+}
 
 export default function DashboardTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,23 +43,32 @@ export default function DashboardTicketDetailPage() {
   const canEditLabels = canManage;
   const canEditDetails = canManage;
 
-  const load = useCallback(() => {
-    if (!token || !id) return;
-    setIsLoading(true);
-    Promise.all([
-      api.get<{ data: Ticket }>(`/tickets/${id}`, token),
-      api.get<{ data: TicketHistoryEntry[] }>(`/tickets/${id}/history`, token),
-    ])
-      .then(([ticketRes, historyRes]) => {
-        setTicket(ticketRes.data);
-        setHistory(historyRes.data);
-      })
-      .finally(() => setIsLoading(false));
-  }, [token, id]);
+  const load = useCallback(
+    (silent = false) => {
+      if (!token || !id) return;
+      if (!silent) setIsLoading(true);
+      Promise.all([
+        api.get<{ data: Ticket }>(`/tickets/${id}`, token),
+        api.get<{ data: TicketHistoryEntry[] }>(`/tickets/${id}/history`, token),
+      ])
+        .then(([ticketRes, historyRes]) => {
+          setTicket(ticketRes.data);
+          setHistory(historyRes.data);
+        })
+        .finally(() => {
+          if (!silent) setIsLoading(false);
+        });
+    },
+    [token, id],
+  );
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useRealtimeEvent<TicketChangedEvent>(token, 'ticket:changed', (event) => {
+    if (event.ticketId === id) load(true);
+  });
 
   return (
     <>

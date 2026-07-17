@@ -29,6 +29,7 @@ import {
   isNoteRequiredForTransition,
 } from './ticket-transitions';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsRealtimeGateway } from '../notifications/notifications-realtime/notifications-realtime.gateway';
 import { LabelsService } from '../labels/labels.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 
@@ -84,6 +85,7 @@ export class TicketsService {
     private readonly historyService: HistoryService,
     private readonly notificationsService: NotificationsService,
     private readonly labelsService: LabelsService,
+    private readonly realtimeGateway: NotificationsRealtimeGateway,
   ) {}
 
   async create(dto: CreateTicketDto, user: JwtPayload) {
@@ -140,6 +142,12 @@ export class TicketsService {
         metadata: { photoUrl: dto.photoUrl, simulated: true },
       });
     }
+
+    this.realtimeGateway.emitTicketEvent({
+      ticketId: ticket.id,
+      action: 'created',
+      reporterId: ticket.reporterId,
+    });
 
     return { data: ticket };
   }
@@ -274,6 +282,12 @@ export class TicketsService {
       metadata,
     });
 
+    this.realtimeGateway.emitTicketEvent({
+      ticketId: id,
+      action: 'updated',
+      reporterId: updated.reporterId,
+    });
+
     return { data: updated };
   }
 
@@ -325,6 +339,12 @@ export class TicketsService {
       },
     );
 
+    this.realtimeGateway.emitTicketEvent({
+      ticketId: id,
+      action: 'status_changed',
+      reporterId: updated.reporterId,
+    });
+
     return { data: updated };
   }
 
@@ -354,6 +374,12 @@ export class TicketsService {
       actorId: user.sub,
     });
 
+    this.realtimeGateway.emitTicketEvent({
+      ticketId: id,
+      action: 'assigned',
+      reporterId: updated.reporterId,
+    });
+
     return { data: updated };
   }
 
@@ -379,6 +405,12 @@ export class TicketsService {
       },
     );
 
+    this.realtimeGateway.emitTicketEvent({
+      ticketId: id,
+      action: 'note_added',
+      reporterId: ticket.reporterId,
+    });
+
     return { data: entry };
   }
 
@@ -395,6 +427,12 @@ export class TicketsService {
         labels: { set: unique.map((labelId) => ({ id: labelId })) },
       },
       include: this.ticketInclude(),
+    });
+
+    this.realtimeGateway.emitTicketEvent({
+      ticketId: id,
+      action: 'labels_changed',
+      reporterId: updated.reporterId,
     });
 
     return { data: updated };

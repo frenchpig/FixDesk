@@ -1,6 +1,6 @@
-// Responsabilidad: persistir y consultar notificaciones in-app del usuario
+// Responsabilidad: persistir notificaciones in-app y emitirlas por websocket
 // Usado por: NotificationsController, TicketsService
-// NO hace: websockets, email ni push
+// NO hace: email ni push
 import {
   ForbiddenException,
   Injectable,
@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationType } from '@prisma/client';
+import { NotificationsRealtimeGateway } from './notifications-realtime/notifications-realtime.gateway';
 
 export interface CreateNotificationPayload {
   type: NotificationType;
@@ -19,10 +20,14 @@ export interface CreateNotificationPayload {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtimeGateway: NotificationsRealtimeGateway,
+  ) {}
 
   /**
-   * Crea notificaciones para destinatarios únicos, excluyendo al actor.
+   * Crea notificaciones para destinatarios únicos, excluyendo al actor,
+   * y emite cada una por websocket.
    */
   async createForUsers(
     userIds: string[],
@@ -34,17 +39,35 @@ export class NotificationsService {
 
     if (recipients.length === 0) return { created: 0 };
 
-    await this.prisma.notification.createMany({
-      data: recipients.map((userId) => ({
-        userId,
-        type: payload.type,
-        title: payload.title,
-        body: payload.body,
-        ticketId: payload.ticketId,
-      })),
-    });
+    const created = await Promise.all(
+      recipients.map((userId) =>
+        this.prisma.notification.create({
+          data: {
+            userId,
+            type: payload.type,
+            title: payload.title,
+            body: payload.body,
+            ticketId: payload.ticketId,
+          },
+          select: {
+            id: true,
+            userId: true,
+            type: true,
+            title: true,
+            body: true,
+            ticketId: true,
+            readAt: true,
+            createdAt: true,
+          },
+        }),
+      ),
+    );
 
-    return { created: recipients.length };
+    for (const row of created) {
+      this.realtimeGateway.emitNotification(row);
+    }
+
+    return { created: created.length };
   }
 
   async findAll(userId: string, page = 1, perPage = 20) {

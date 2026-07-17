@@ -10,6 +10,7 @@ import { HistorialFiltersPanel } from '@/components/organisms/HistorialFiltersPa
 import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useRealtimeEvent } from '@/hooks/useRealtimeEvent';
 import type {
   HistorialFilters,
   PaginatedMeta,
@@ -105,30 +106,37 @@ export default function HistorialPage() {
       });
   }, [token]);
 
-  const loadTickets = useCallback(() => {
-    if (!token) return;
-    setIsLoading(true);
-    setError(null);
-    api
-      .get<PaginatedResponse<Ticket>>(
-        `/tickets?${buildQuery(appliedFilters, page)}`,
-        token,
-      )
-      .then((res) => {
-        setTickets(res.data);
-        setMeta(res.meta);
-      })
-      .catch((err) => {
-        setError((err as Error).message);
-        setTickets([]);
-        setMeta(EMPTY_META);
-      })
-      .finally(() => setIsLoading(false));
-  }, [token, appliedFilters, page]);
+  const loadTickets = useCallback(
+    (silent = false) => {
+      if (!token) return;
+      if (!silent) setIsLoading(true);
+      setError(null);
+      api
+        .get<PaginatedResponse<Ticket>>(
+          `/tickets?${buildQuery(appliedFilters, page)}`,
+          token,
+        )
+        .then((res) => {
+          setTickets(res.data);
+          setMeta(res.meta);
+        })
+        .catch((err) => {
+          setError((err as Error).message);
+          setTickets([]);
+          setMeta(EMPTY_META);
+        })
+        .finally(() => {
+          if (!silent) setIsLoading(false);
+        });
+    },
+    [token, appliedFilters, page],
+  );
 
   useEffect(() => {
     loadTickets();
   }, [loadTickets]);
+
+  useRealtimeEvent(token, 'ticket:changed', () => loadTickets(true));
 
   function handleApply() {
     setPage(1);

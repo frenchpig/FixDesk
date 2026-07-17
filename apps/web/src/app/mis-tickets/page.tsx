@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/templates/AuthGuard';
 import { AppLayout } from '@/components/templates/AppLayout';
@@ -13,6 +13,7 @@ import { Button } from '@/components/atoms/Button';
 import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useRealtimeEvent } from '@/hooks/useRealtimeEvent';
 import type { Ticket } from '@/types';
 import { PlusCircle } from 'lucide-react';
 
@@ -21,13 +22,25 @@ export default function MisTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const loadTickets = useCallback(
+    (silent = false) => {
+      if (!token) return;
+      if (!silent) setIsLoading(true);
+      api
+        .get<{ data: Ticket[] }>('/tickets', token)
+        .then((res) => setTickets(res.data))
+        .finally(() => {
+          if (!silent) setIsLoading(false);
+        });
+    },
+    [token],
+  );
+
   useEffect(() => {
-    if (!token) return;
-    api
-      .get<{ data: Ticket[] }>('/tickets', token)
-      .then((res) => setTickets(res.data))
-      .finally(() => setIsLoading(false));
-  }, [token]);
+    loadTickets();
+  }, [loadTickets]);
+
+  useRealtimeEvent(token, 'ticket:changed', () => loadTickets(true));
 
   return (
     <AuthGuard roles={['USER', 'TECHNICIAN', 'ADMIN']}>

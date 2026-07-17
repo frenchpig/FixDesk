@@ -1,6 +1,6 @@
-// Responsabilidad: campana in-app con listado, badge y marcar leídas
+// Responsabilidad: campana in-app con listado, badge, realtime y marcar leídas
 // Usado por: AppHeader
-// NO hace: websockets ni envío de notificaciones
+// NO hace: envío de notificaciones
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -13,10 +13,13 @@ import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useAnimationsEnabled } from '@/lib/theme/theme-provider';
+import { useRealtimeEvent } from '@/hooks/useRealtimeEvent';
 import type { AppNotification, PaginatedResponse } from '@/types';
 
 const CLOSE_MS = 180;
-const POLL_MS = 30_000;
+/** Fallback lento cuando el websocket no está disponible. */
+const POLL_MS = 60_000;
+const LIST_LIMIT = 15;
 
 function ticketHref(role: string | undefined, ticketId: string) {
   if (role === 'USER') return `/mis-tickets/${ticketId}`;
@@ -79,7 +82,7 @@ export function NotificationsMenu() {
     setLoadingList(true);
     try {
       const res = await api.get<PaginatedResponse<AppNotification>>(
-        '/notifications?perPage=15',
+        `/notifications?perPage=${LIST_LIMIT}`,
         token,
       );
       setItems(res.data);
@@ -89,6 +92,25 @@ export function NotificationsMenu() {
       setLoadingList(false);
     }
   }, [token]);
+
+  const handleRealtimeNotification = useCallback(
+    (notification: AppNotification) => {
+      setUnread((count) => count + 1);
+      setItems((prev) => {
+        if (prev.some((item) => item.id === notification.id)) {
+          return prev;
+        }
+        return [notification, ...prev].slice(0, LIST_LIMIT);
+      });
+    },
+    [],
+  );
+
+  useRealtimeEvent<AppNotification>(
+    token,
+    'notification:new',
+    handleRealtimeNotification,
+  );
 
   useEffect(() => {
     if (!token) return;

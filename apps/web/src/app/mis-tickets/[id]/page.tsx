@@ -15,8 +15,14 @@ import { TicketTimeline } from '@/components/organisms/TicketTimeline';
 import { TicketComments } from '@/components/organisms/TicketComments';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useRealtimeEvent } from '@/hooks/useRealtimeEvent';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import type { Ticket, TicketHistoryEntry } from '@/types';
+
+interface TicketChangedEvent {
+  ticketId: string;
+  action: string;
+}
 
 export default function MisTicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +44,10 @@ export default function MisTicketDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useRealtimeEvent<TicketChangedEvent>(token, 'ticket:changed', (event) => {
+    if (event.ticketId === id) load();
+  });
 
   if (!ticket) {
     return (

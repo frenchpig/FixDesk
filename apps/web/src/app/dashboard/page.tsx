@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AnimatedPage,
   AnimatedSection,
@@ -10,6 +10,7 @@ import { Button } from '@/components/atoms/Button';
 import { Text } from '@/components/atoms/Text';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useRealtimeEvent } from '@/hooks/useRealtimeEvent';
 import type { Ticket } from '@/types';
 
 type Filter = 'all' | 'mine' | 'high';
@@ -20,19 +21,30 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [isLoading, setIsLoading] = useState(true);
 
+  const loadTickets = useCallback(
+    (silent = false) => {
+      if (!token) return;
+
+      const params = new URLSearchParams({ createdToday: 'true' });
+      if (filter === 'mine') params.set('assigneeId', 'me');
+      if (filter === 'high') params.set('priority', 'HIGH');
+
+      if (!silent) setIsLoading(true);
+      api
+        .get<{ data: Ticket[] }>(`/tickets?${params.toString()}`, token)
+        .then((res) => setTickets(res.data))
+        .finally(() => {
+          if (!silent) setIsLoading(false);
+        });
+    },
+    [token, filter],
+  );
+
   useEffect(() => {
-    if (!token) return;
+    loadTickets();
+  }, [loadTickets]);
 
-    const params = new URLSearchParams({ createdToday: 'true' });
-    if (filter === 'mine') params.set('assigneeId', 'me');
-    if (filter === 'high') params.set('priority', 'HIGH');
-
-    setIsLoading(true);
-    api
-      .get<{ data: Ticket[] }>(`/tickets?${params.toString()}`, token)
-      .then((res) => setTickets(res.data))
-      .finally(() => setIsLoading(false));
-  }, [token, filter]);
+  useRealtimeEvent(token, 'ticket:changed', () => loadTickets(true));
 
   return (
     <>
