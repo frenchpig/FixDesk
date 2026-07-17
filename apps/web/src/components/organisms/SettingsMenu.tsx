@@ -8,7 +8,7 @@ import { Button } from '@/components/atoms/Button';
 import { Text } from '@/components/atoms/Text';
 import { useAuth } from '@/lib/auth-context';
 import { useAnimationsEnabled } from '@/lib/theme/theme-provider';
-import { Settings, Palette, SlidersHorizontal, LogOut } from 'lucide-react';
+import { Settings, Palette, SlidersHorizontal, LogOut, Timer } from 'lucide-react';
 
 const CLOSE_MS = 180;
 
@@ -112,7 +112,18 @@ export function SettingsMenu() {
                 Apariencia
               </MenuLink>
             </AnimatedItem>
-            <AnimatedItem delay="menu-item-delay-3" animate={animationsEnabled}>
+            {user.role === 'ADMIN' && (
+              <AnimatedItem delay="menu-item-delay-3" animate={animationsEnabled}>
+                <MenuLink
+                  href="/configuracion/sla"
+                  icon={<Timer size={16} />}
+                  onNavigate={close}
+                >
+                  SLA
+                </MenuLink>
+              </AnimatedItem>
+            )}
+            <AnimatedItem delay="menu-item-delay-4" animate={animationsEnabled}>
               <MenuLink
                 href="/configuracion"
                 icon={<SlidersHorizontal size={16} />}

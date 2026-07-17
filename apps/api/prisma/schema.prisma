@@ -72,6 +72,7 @@ model User {
   assignedTickets Ticket[]        @relation("Assignee")
   historyEntries  TicketHistory[]
   notifications   Notification[]
+  settingsUpdates SystemSettings[]
 
   @@index([role])
   @@index([areaId])
@@ -168,4 +169,13 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+/** Configuración global del sistema (singleton id = "default"). */
+model SystemSettings {
+  id             String   @id
+  slaTargetHours Int      @default(48)
+  updatedAt      DateTime @updatedAt
+  updatedById    String?
+  updatedBy      User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 }

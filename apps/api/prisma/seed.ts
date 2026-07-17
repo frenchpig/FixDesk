@@ -54,9 +54,21 @@ async function main() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: 'admin@fixdesk.dev' },
+    update: {},
+    create: {
+      email: 'admin@fixdesk.dev',
+      name: 'Ana Admin',
+      passwordHash,
+      role: Role.ADMIN,
+    },
+  });
+
   console.log('Seed completado');
   console.log('  tecnico@fixdesk.dev / fixdesk123');
   console.log('  usuario@fixdesk.dev / fixdesk123');
+  console.log('  admin@fixdesk.dev / fixdesk123');
 
   const labels = [
     { name: 'Urgente', color: '#EF4444' },
@@ -75,6 +87,21 @@ async function main() {
   }
 
   console.log(`  ${labels.length} etiquetas seed`);
+
+  const slaFromEnv = Number.parseInt(process.env.SLA_TARGET_HOURS ?? '', 10);
+  const slaTargetHours =
+    Number.isFinite(slaFromEnv) && slaFromEnv > 0 ? slaFromEnv : 48;
+
+  await prisma.systemSettings.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: {
+      id: 'default',
+      slaTargetHours,
+    },
+  });
+
+  console.log(`  SLA objetivo: ${slaTargetHours}h`);
 }
 
 main()

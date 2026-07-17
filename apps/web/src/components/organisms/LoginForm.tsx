@@ -84,6 +84,9 @@ export function LoginForm() {
         <Text variant="caption" className="block">
           Técnico: tecnico@fixdesk.dev / fixdesk123
         </Text>
+        <Text variant="caption" className="block">
+          Admin: admin@fixdesk.dev / fixdesk123
+        </Text>
       </div>
     </Card>
   );

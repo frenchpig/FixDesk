@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { ReportsModule } from './reports/reports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LabelsModule } from './labels/labels.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { LabelsModule } from './labels/labels.module';
     ReportsModule,
     NotificationsModule,
     LabelsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
 })

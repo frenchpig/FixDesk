@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   HistoryEventType,
   Role,
@@ -13,7 +12,7 @@ import {
   buildReportsExcel,
   buildReportsPdf,
 } from './reports-export.builder';
-import { resolveSlaTargetHours } from '../config/sla.config';
+import { SettingsService } from '../settings/settings.service';
 
 const OPEN_STATUSES: TicketStatus[] = [
   TicketStatus.OPEN,
@@ -25,16 +24,13 @@ const OPEN_STATUSES: TicketStatus[] = [
 export class ReportsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
-
-  private get slaTargetHours(): number {
-    return resolveSlaTargetHours(this.config);
-  }
 
   async getMetrics(user: JwtPayload, query: ReportQueryDto) {
     const { dateFrom, dateTo } = this.resolveDateRange(query);
     const baseWhere = this.buildFilterWhere(user, query);
+    const slaTargetHours = await this.settings.getSlaTargetHours();
 
     const periodCreatedWhere: Prisma.TicketWhereInput = {
       ...baseWhere,
@@ -175,8 +171,6 @@ export class ReportsService {
         .filter((t) => t.resolvedAt)
         .map((t) => t.resolvedAt!.getTime() - t.createdAt.getTime()),
     );
-
-    const slaTargetHours = this.slaTargetHours;
 
     const slaCompliant = resolvedTickets.filter((t) => {
       if (!t.resolvedAt) return false;
