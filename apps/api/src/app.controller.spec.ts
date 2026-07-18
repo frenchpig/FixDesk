@@ -1,22 +1,34 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { PrismaService } from './prisma/prisma.service';
 
 describe('AppController', () => {
   let appController: AppController;
+  const queryRaw = jest.fn().mockResolvedValue([{ '?column?': 1 }]);
 
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [AppService],
+      providers: [
+        {
+          provide: PrismaService,
+          useValue: { $queryRaw: queryRaw },
+        },
+      ],
     }).compile();
 
     appController = app.get<AppController>(AppController);
+    queryRaw.mockClear();
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+  describe('health', () => {
+    it('should confirm the API and database are available', async () => {
+      const result = await appController.health();
+
+      expect(result.status).toBe('ok');
+      expect(result.db).toBe('connected');
+      expect(typeof result.timestamp).toBe('string');
+      expect(queryRaw).toHaveBeenCalledTimes(1);
     });
   });
 });

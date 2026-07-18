@@ -1,7 +1,14 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
+import {
+  DEFAULT_THROTTLE_LIMIT,
+  DEFAULT_THROTTLE_TTL_MS,
+  resolvePositiveInteger,
+} from './config/throttling.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { TicketsModule } from './tickets/tickets.module';
@@ -23,6 +30,23 @@ import { WorkflowModule } from './workflow/workflow.module';
         '.env',
       ],
     }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: resolvePositiveInteger(
+            config.get<string>('THROTTLE_TTL_MS'),
+            DEFAULT_THROTTLE_TTL_MS,
+            'THROTTLE_TTL_MS',
+          ),
+          limit: resolvePositiveInteger(
+            config.get<string>('THROTTLE_LIMIT'),
+            DEFAULT_THROTTLE_LIMIT,
+            'THROTTLE_LIMIT',
+          ),
+        },
+      ],
+    }),
     PrismaModule,
     AuthModule,
     TicketsModule,
@@ -35,5 +59,11 @@ import { WorkflowModule } from './workflow/workflow.module';
     WorkflowModule,
   ],
   controllers: [AppController],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

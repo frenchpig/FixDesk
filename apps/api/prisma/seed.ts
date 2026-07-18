@@ -21,7 +21,7 @@ async function main() {
   for (const area of areas) {
     await prisma.area.upsert({
       where: { name: area.name },
-      update: {},
+      update: { description: area.description },
       create: area,
     });
   }
@@ -34,7 +34,12 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'tecnico@fixdesk.dev' },
-    update: {},
+    update: {
+      name: 'Juan Técnico',
+      passwordHash,
+      role: Role.TECHNICIAN,
+      areaId: hardwareArea.id,
+    },
     create: {
       email: 'tecnico@fixdesk.dev',
       name: 'Juan Técnico',
@@ -46,7 +51,12 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'usuario@fixdesk.dev' },
-    update: {},
+    update: {
+      name: 'María García',
+      passwordHash,
+      role: Role.USER,
+      areaId: null,
+    },
     create: {
       email: 'usuario@fixdesk.dev',
       name: 'María García',
@@ -57,7 +67,12 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'admin@fixdesk.dev' },
-    update: {},
+    update: {
+      name: 'Ana Admin',
+      passwordHash,
+      role: Role.ADMIN,
+      areaId: null,
+    },
     create: {
       email: 'admin@fixdesk.dev',
       name: 'Ana Admin',
@@ -95,7 +110,11 @@ async function main() {
 
   await prisma.systemSettings.upsert({
     where: { id: 'default' },
-    update: {},
+    update: {
+      slaTargetHours,
+      workflowNoteOnReopen: true,
+      updatedById: null,
+    },
     create: {
       id: 'default',
       slaTargetHours,
@@ -107,7 +126,7 @@ async function main() {
   for (const state of DEFAULT_WORKFLOW_STATES) {
     await prisma.workflowState.upsert({
       where: { key: state.key },
-      update: {},
+      update: state,
       create: state,
     });
   }

@@ -8,6 +8,8 @@
     "dev:web": "bun run --filter web dev",
     "build": "bun run --filter api build && bun run --filter web build",
     "db:migrate": "bun run --filter api db:migrate",
+    "db:migrate:deploy": "bun run --filter api db:migrate:deploy",
+    "db:reset:demo": "bun run --filter api db:reset:demo",
     "db:seed": "bun run --filter api db:seed"
   }
 }

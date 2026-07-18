@@ -1,254 +1,273 @@
-# Despliegue
+<!--
+Responsabilidad: guiar el despliegue gratuito y reproducible de FixDesk.
+Usado por: responsables de publicar la demo desde GitHub.
+NO hace: configurar Storage, correo, colas ni un entorno productivo con SLA.
+-->
 
-Guía para desplegar FixDesk con **costo $0** usando tiers gratuitos de Vercel, Supabase y Koyeb (o Render).
+# Despliegue gratuito de FixDesk
 
-## Arquitectura de despliegue
+Esta guía publica la demo con la siguiente arquitectura:
 
+```text
+Vercel (Next.js) → Koyeb (NestJS + Bun) → Supabase (PostgreSQL)
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Vercel    │────→│ Koyeb/Render│────→│  Supabase   │
-│  (Next.js)  │     │ (NestJS+Bun)│     │ (PostgreSQL)│
-│  Frontend   │     │   Backend   │     │  + Storage  │
-└─────────────┘     └─────────────┘     └─────────────┘
-     Gratis              Gratis              Gratis
+
+Está pensada para una demostración personal y no comercial. Los planes gratuitos
+pueden suspender servicios inactivos y no ofrecen garantías de disponibilidad.
+
+## 1. Antes de empezar
+
+Necesitas:
+
+- El repositorio actualizado en GitHub.
+- Cuentas gratuitas en [Supabase](https://supabase.com),
+  [Koyeb](https://koyeb.com) y [Vercel](https://vercel.com).
+- Bun 1.3.13 o compatible instalado localmente.
+- Una rama que Koyeb y Vercel puedan desplegar, por ejemplo `develop`.
+
+Comprueba el proyecto antes de subirlo:
+
+```bash
+bun install --frozen-lockfile
+bun run build
 ```
 
-## Prerrequisitos
+No subas archivos `.env` ni copies secretos dentro del código fuente.
 
-- Cuenta en [Vercel](https://vercel.com)
-- Cuenta en [Supabase](https://supabase.com)
-- Cuenta en [Koyeb](https://koyeb.com) o [Render](https://render.com)
-- [Bun](https://bun.sh) instalado localmente
-- Repositorio Git (GitHub recomendado)
+## 2. Crear PostgreSQL en Supabase
 
----
+1. En Supabase, selecciona **New project**.
+2. Elige una región cercana a la región de Koyeb.
+3. Guarda la contraseña de la base de datos.
+4. Abre **Connect** y copia la URL de **Session pooler**, puerto `5432`.
 
-## 1. Supabase (Base de datos + Storage)
+Para una API persistente como Koyeb, Session pooler es la opción más simple:
 
-### Crear proyecto
+```text
+postgresql://postgres.PROJECT_REF:PASSWORD@HOST.pooler.supabase.com:5432/postgres
+```
 
-1. Ir a [supabase.com/dashboard](https://supabase.com/dashboard) → New Project
-2. Elegir región cercana a los usuarios
-3. Guardar la contraseña de la base de datos
+Configura ambas variables con esa URL:
 
-### Obtener connection strings
+```text
+DATABASE_URL=URL_SESSION_POOLER
+DIRECT_URL=URL_SESSION_POOLER
+```
 
-En **Settings → Database**:
+`DATABASE_URL` es usada por Prisma Client y `DIRECT_URL` por Prisma CLI para las
+migraciones. Si se cambia la API a un entorno serverless, puede usarse el
+Transaction pooler en `DATABASE_URL` (puerto `6543` y `?pgbouncer=true`) y
+mantener Session pooler en `DIRECT_URL`.
 
-| Variable | Valor |
-|----------|-------|
-| `DATABASE_URL` | Connection string con **PgBouncer** (puerto 6543, `?pgbouncer=true`) |
-| `DIRECT_URL` | Connection string directa (puerto 5432) para migraciones |
+### Crear tablas y datos demo
 
-### Configurar Storage
-
-1. **Storage → New bucket** → nombre: `ticket-photos`
-2. Política: lectura pública, escritura autenticada
-3. Guardar `SUPABASE_URL` y `SUPABASE_SERVICE_KEY` (Settings → API)
-
-### Ejecutar migraciones
+Desde `apps/api`, ejecuta las migraciones versionadas y el seed:
 
 ```bash
 cd apps/api
-DATABASE_URL="postgresql://..." DIRECT_URL="postgresql://..." bunx prisma migrate deploy
-bunx prisma db seed  # Datos de desarrollo
+
+DATABASE_URL="URL_SESSION_POOLER" \
+DIRECT_URL="URL_SESSION_POOLER" \
+bun run db:migrate:deploy
+
+DATABASE_URL="URL_SESSION_POOLER" \
+DIRECT_URL="URL_SESSION_POOLER" \
+bun run db:seed
 ```
 
----
+El seed crea áreas, etiquetas, workflow, SLA y estas cuentas:
 
-## 2. Backend (NestJS + Bun en Koyeb)
+| Rol | Usuario | Contraseña |
+|---|---|---|
+| Usuario | `usuario@fixdesk.dev` | `fixdesk123` |
+| Técnico | `tecnico@fixdesk.dev` | `fixdesk123` |
+| Administrador | `admin@fixdesk.dev` | `fixdesk123` |
 
-### Preparar el Dockerfile
+## 3. Publicar la API en Koyeb
 
-```dockerfile
-# apps/api/Dockerfile
-FROM oven/bun:1 AS base
-WORKDIR /app
+1. En Koyeb, selecciona **Create Web Service** y conecta GitHub.
+2. Selecciona el repositorio y la rama que contiene los cambios.
+3. Usa **Dockerfile** como builder.
+4. Conserva la raíz del repositorio como **Work directory**.
+5. Usa `apps/api/Dockerfile` como ruta del archivo de construcción.
+6. Selecciona la instancia **Free**.
+7. Expón el puerto HTTP `3001`.
+8. Configura el health check `GET /api/v1/health`.
 
-COPY package.json bun.lockb ./
-COPY apps/api/package.json ./apps/api/
-RUN bun install --frozen-lockfile
+El contenedor ejecuta `prisma migrate deploy` antes de arrancar la API. El seed
+se ejecuta una sola vez desde el equipo local, como se indicó anteriormente.
 
-COPY apps/api ./apps/api
-COPY packages ./packages
+### Variables de Koyeb
 
-WORKDIR /app/apps/api
-RUN bunx prisma generate
-
-EXPOSE 3001
-CMD ["bun", "run", "start:prod"]
+```text
+DATABASE_URL=URL_SESSION_POOLER
+DIRECT_URL=URL_SESSION_POOLER
+JWT_SECRET=SECRETO_LARGO_Y_ALEATORIO
+JWT_EXPIRES_IN=7d
+PORT=3001
+CORS_ORIGIN=https://temporal.invalid
+THROTTLE_TTL_MS=60000
+THROTTLE_LIMIT=120
+AUTH_THROTTLE_TTL_MS=60000
+AUTH_THROTTLE_LIMIT=10
+SLA_TARGET_HOURS=48
 ```
 
-### Variables de entorno (Koyeb)
-
-| Variable | Valor |
-|----------|-------|
-| `DATABASE_URL` | Connection string PgBouncer de Supabase |
-| `DIRECT_URL` | Connection string directa |
-| `JWT_SECRET` | String aleatorio de 64+ caracteres |
-| `JWT_EXPIRES_IN` | `7d` |
-| `PORT` | `3001` |
-| `CORS_ORIGIN` | URL del frontend en Vercel |
-| `SUPABASE_URL` | URL del proyecto Supabase |
-| `SUPABASE_SERVICE_KEY` | Service role key |
-
-### Desplegar en Koyeb
-
-1. Conectar repositorio GitHub
-2. Tipo: **Web Service** con Dockerfile
-3. Puerto: `3001`
-4. Instancia: **Nano** (gratis — 512 MB RAM, ecomode)
-5. Health check path: `/api/v1/health`
-6. Agregar variables de entorno
-
-### Alternativa: Render
-
-1. New → Web Service → conectar repo
-2. Runtime: Docker
-3. Plan: Free (se duerme tras 15 min de inactividad)
-4. Mismas variables de entorno
-
-> **Nota:** Render free tier tiene cold starts de ~30 s. Koyeb ecomode es más estable para APIs.
-
----
-
-## 3. Frontend (Next.js en Vercel)
-
-### Variables de entorno (Vercel)
-
-| Variable | Valor |
-|----------|-------|
-| `NEXT_PUBLIC_API_URL` | URL del backend en Koyeb (ej. `https://fixdesk-api.koyeb.app/api/v1`) |
-
-### Desplegar
-
-1. Importar repositorio en [vercel.com](https://vercel.com)
-2. Framework preset: **Next.js**
-3. Root directory: `apps/web`
-4. Agregar variable de entorno
-5. Deploy
-
-Vercel detecta automáticamente Next.js y configura build/deploy.
-
----
-
-## 4. Configurar CORS
-
-En el backend NestJS, asegurar que `CORS_ORIGIN` apunte a la URL de producción del frontend:
-
-```typescript
-// main.ts
-app.enableCors({
-  origin: process.env.CORS_ORIGIN,
-  credentials: true,
-});
-```
-
----
-
-## 5. Verificación post-despliegue
+Genera `JWT_SECRET` localmente:
 
 ```bash
-# Health check del backend
-curl https://fixdesk-api.koyeb.app/api/v1/health
+openssl rand -base64 48
+```
 
-# Login de prueba
-curl -X POST https://fixdesk-api.koyeb.app/api/v1/auth/login \
+No reutilices el secreto de desarrollo. Después del deploy, guarda la URL
+asignada por Koyeb:
+
+```text
+https://NOMBRE-API.koyeb.app
+```
+
+Verifica:
+
+```bash
+curl https://NOMBRE-API.koyeb.app/api/v1/health
+```
+
+La respuesta debe incluir `status: "ok"` y `db: "connected"`.
+
+## 4. Publicar el frontend en Vercel
+
+1. Importa el mismo repositorio en Vercel.
+2. Selecciona **Next.js** como framework.
+3. Configura **Root Directory** como `apps/web`.
+4. Selecciona la misma rama de producción usada para la demo.
+5. Agrega esta variable antes de compilar:
+
+```text
+NEXT_PUBLIC_API_URL=https://NOMBRE-API.koyeb.app/api/v1
+```
+
+6. Ejecuta el deploy y guarda la URL estable de producción:
+
+```text
+https://NOMBRE-WEB.vercel.app
+```
+
+`NEXT_PUBLIC_API_URL` queda incorporada durante el build. Si cambia la URL de la
+API, hay que reconstruir el frontend.
+
+## 5. Terminar la configuración de CORS
+
+En Koyeb, reemplaza el valor temporal:
+
+```text
+CORS_ORIGIN=https://NOMBRE-WEB.vercel.app
+```
+
+Guarda la configuración y espera el nuevo deploy de la API.
+
+El backend acepta un único origen exacto. Usa la URL de producción de Vercel;
+las URLs variables de Preview no están habilitadas.
+
+## 6. Verificación posterior
+
+### Health y Swagger
+
+```text
+GET https://NOMBRE-API.koyeb.app/api/v1/health
+GET https://NOMBRE-API.koyeb.app/api/docs
+```
+
+### Login por API
+
+```bash
+curl -X POST https://NOMBRE-API.koyeb.app/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"tecnico@fixdesk.dev","password":"..."}'
-
-# Frontend
-open https://fixdesk.vercel.app
+  -d '{"email":"tecnico@fixdesk.dev","password":"fixdesk123"}'
 ```
 
----
+Debe responder con un token JWT.
 
-## Límites del tier gratuito
+### Flujo en navegador
 
-| Servicio | Límite | Impacto | Mitigación |
-|----------|--------|---------|------------|
-| **Vercel** | 100 GB bandwidth/mes | Bajo para uso interno | Suficiente para campus mediano |
-| **Supabase** | 500 MB DB, 1 GB storage | Medio a largo plazo | Limpiar fotos antiguas; comprimir imágenes |
-| **Supabase** | 2 proyectos activos | Bajo | Un proyecto por entorno |
-| **Koyeb** | 1 Nano service | Bajo | Suficiente para MVP |
-| **Koyeb** | 512 MB RAM | Medio | Bun + queries selectivas |
-| **Render** | Sleep tras 15 min | Alto (cold start) | Cron keep-alive o preferir Koyeb |
+1. Abre la URL de Vercel.
+2. Inicia sesión como usuario y crea un ticket.
+3. Inicia sesión como técnico y asigna o cambia el estado del ticket.
+4. Comprueba el historial, las notificaciones y los reportes.
+5. Inicia sesión como administrador y verifica SLA y workflow.
 
----
+Las notificaciones usan Socket.IO en `/notifications`. Si el servicio se
+despierta o se reinicia, el cliente reconecta y conserva polling REST como
+respaldo.
 
-## CI/CD (recomendado)
+### Comprobar rate limiting
 
-### GitHub Actions — migraciones automáticas
+La API limita peticiones por IP. Login y registro tienen un límite más estricto.
+Al superar el límite configurado debe responder HTTP `429 Too Many Requests`.
 
-```yaml
-# .github/workflows/deploy-api.yml
-name: Deploy API
-on:
-  push:
-    branches: [main]
-    paths: ['apps/api/**']
+## 7. Restaurar la demo
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: cd apps/api && bunx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-```
+El siguiente comando elimina todos los tickets, usuarios y configuración de la
+base indicada, vuelve a aplicar las migraciones y ejecuta el seed.
 
-Vercel y Koyeb despliegan automáticamente al push a `main`.
-
----
-
-## Entornos
-
-| Entorno | Frontend | Backend | Base de datos |
-|---------|----------|---------|---------------|
-| Local | `localhost:3000` | `localhost:3001` | Supabase local o Docker |
-| Staging | `fixdesk-staging.vercel.app` | `fixdesk-api-staging.koyeb.app` | Proyecto Supabase staging |
-| Producción | `fixdesk.vercel.app` | `fixdesk-api.koyeb.app` | Proyecto Supabase prod |
-
----
-
-## Desarrollo local
+> ADVERTENCIA: es destructivo. Úsalo exclusivamente con la base descartable de
+> la demo; nunca con datos reales.
 
 ```bash
-# Clonar e instalar
-git clone <repo> && cd FixDesk
-bun install
-
-# Configurar entorno
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-# Editar .env con credenciales de Supabase
-
-# Base de datos
 cd apps/api
-bunx prisma migrate dev
-bunx prisma db seed
 
-# Levantar servicios
-cd ../..
-bun run dev          # Levanta frontend + backend en paralelo
+DATABASE_URL="URL_SESSION_POOLER" \
+DIRECT_URL="URL_SESSION_POOLER" \
+bun run db:reset:demo
 ```
 
-### Supabase local (opcional)
+El seed restaura nombres, roles, contraseñas, áreas, etiquetas, SLA y estados
+predeterminados aunque hayan sido modificados.
 
-```bash
-npx supabase init
-npx supabase start   # PostgreSQL local en Docker
-```
+## 8. Límites y seguridad de la demo
 
----
+- Vercel Hobby solo permite proyectos personales y no comerciales.
+- Koyeb Free ofrece una instancia de 512 MB y escala a cero después de una hora
+  sin tráfico. El primer acceso posterior tendrá cold start.
+- Supabase Free puede pausar proyectos con poca actividad durante una semana.
+  Confirma que esté activo antes de presentar la demo.
+- La cuenta administradora y su contraseña aparecen en la pantalla de login.
+  Cualquier visitante puede modificar SLA, workflow y datos de demostración.
+- Login y registro tienen rate limiting, pero no CAPTCHA ni verificación de
+  correo. Revisa periódicamente la base y usa el reset cuando sea necesario.
+- No cargues información personal o confidencial.
 
-## Monitoreo (fase 2)
+## 9. Funcionalidades no desplegadas
 
-| Herramienta | Costo | Uso |
-|-------------|-------|-----|
-| [Better Stack](https://betterstack.com) | Gratis (10 monitors) | Uptime del health check |
-| [Sentry](https://sentry.io) | Gratis (5K events/mes) | Errores en frontend y backend |
-| Supabase Dashboard | Incluido | Queries lentas, uso de storage |
+- Los adjuntos son placeholders: no se envían bytes ni se usa Supabase Storage.
+- No hay envío de correo.
+- No existen Redis, colas ni workers.
+- No hay backups automáticos en el plan gratuito.
+- El realtime está diseñado para una única instancia; no usa adaptador Redis.
+
+No configures `SUPABASE_SERVICE_KEY`, buckets ni SMTP para esta versión.
+
+## 10. Resolución de problemas
+
+### El health check responde error
+
+- Confirma que Supabase esté activo.
+- Revisa `DATABASE_URL` y `DIRECT_URL`.
+- Verifica que la contraseña esté correctamente codificada en la URL.
+- Consulta los logs de Koyeb para errores de `prisma migrate deploy`.
+
+### El frontend muestra errores de red
+
+- Confirma que `NEXT_PUBLIC_API_URL` termina en `/api/v1`.
+- Vuelve a desplegar Vercel después de cambiar esa variable.
+- Comprueba que `CORS_ORIGIN` coincide exactamente con la URL del frontend.
+
+### La API no arranca
+
+- Confirma que Koyeb usa la raíz del repositorio como Work directory.
+- Comprueba que el builder use `apps/api/Dockerfile`.
+- Verifica que estén definidas `DATABASE_URL`, `DIRECT_URL` y `JWT_SECRET`.
+
+### El primer acceso tarda
+
+Es normal después del scale-to-zero de Koyeb. Abre primero el health check y
+espera una respuesta correcta antes de presentar la demo.

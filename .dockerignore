@@ -1,0 +1,13 @@
+# Responsabilidad: limitar el contexto de construcción de la API
+# Usado por: Docker/Koyeb al procesar apps/api/Dockerfile
+# NO hace: reemplazar las reglas de .gitignore
+
+.git
+.cursor
+**/node_modules
+**/.env
+**/.env.local
+**/.env.*.local
+**/dist
+**/.next
+**/coverage
