@@ -1,137 +1,25 @@
-import { PrismaClient, Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
-import { DEFAULT_WORKFLOW_STATES } from '../src/tickets/ticket-transitions';
+// Responsabilidad: orquestar el seed demo de FixDesk
+// Usado por: bun prisma/seed.ts / prisma db seed
+// NO hace: lógica de dominio de la API
+
+import { PrismaClient } from '@prisma/client';
+import { seedCatalog } from './seed/catalog';
+import { seedTickets } from './seed/tickets';
+import { seedUsers } from './seed/users';
 
 const prisma = new PrismaClient();
 
-const areas = [
-  { name: 'Hardware y equipos', description: 'Proyectores, PCs, periféricos' },
-  { name: 'Redes y conectividad', description: 'WiFi, switches, cableado' },
-  {
-    name: 'Infraestructura física',
-    description: 'Mobiliario, bicicleteros, señalética',
-  },
-  {
-    name: 'Instalaciones eléctricas',
-    description: 'Iluminación, tomas, tableros',
-  },
-];
-
 async function main() {
-  for (const area of areas) {
-    await prisma.area.upsert({
-      where: { name: area.name },
-      update: { description: area.description },
-      create: area,
-    });
-  }
+  console.log('Seed FixDesk — catálogos…');
+  const { areaByName, labelByName } = await seedCatalog(prisma);
 
-  const hardwareArea = await prisma.area.findUniqueOrThrow({
-    where: { name: 'Hardware y equipos' },
-  });
+  console.log('Seed FixDesk — usuarios…');
+  const { userByEmail } = await seedUsers(prisma, areaByName);
 
-  const passwordHash = await bcrypt.hash('fixdesk123', 10);
-
-  await prisma.user.upsert({
-    where: { email: 'tecnico@fixdesk.dev' },
-    update: {
-      name: 'Juan Técnico',
-      passwordHash,
-      role: Role.TECHNICIAN,
-      areaId: hardwareArea.id,
-    },
-    create: {
-      email: 'tecnico@fixdesk.dev',
-      name: 'Juan Técnico',
-      passwordHash,
-      role: Role.TECHNICIAN,
-      areaId: hardwareArea.id,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'usuario@fixdesk.dev' },
-    update: {
-      name: 'María García',
-      passwordHash,
-      role: Role.USER,
-      areaId: null,
-    },
-    create: {
-      email: 'usuario@fixdesk.dev',
-      name: 'María García',
-      passwordHash,
-      role: Role.USER,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'admin@fixdesk.dev' },
-    update: {
-      name: 'Ana Admin',
-      passwordHash,
-      role: Role.ADMIN,
-      areaId: null,
-    },
-    create: {
-      email: 'admin@fixdesk.dev',
-      name: 'Ana Admin',
-      passwordHash,
-      role: Role.ADMIN,
-    },
-  });
+  console.log('Seed FixDesk — tickets / historial / notificaciones…');
+  await seedTickets(prisma, { userByEmail, areaByName, labelByName });
 
   console.log('Seed completado');
-  console.log('  tecnico@fixdesk.dev / fixdesk123');
-  console.log('  usuario@fixdesk.dev / fixdesk123');
-  console.log('  admin@fixdesk.dev / fixdesk123');
-
-  const labels = [
-    { name: 'Urgente', color: '#EF4444' },
-    { name: 'Recurrente', color: '#F59E0B' },
-    { name: 'Campus', color: '#3B82F6' },
-    { name: 'Aula', color: '#8B5CF6' },
-    { name: 'Exterior', color: '#10B981' },
-  ];
-
-  for (const label of labels) {
-    await prisma.label.upsert({
-      where: { name: label.name },
-      update: { color: label.color },
-      create: label,
-    });
-  }
-
-  console.log(`  ${labels.length} etiquetas seed`);
-
-  const slaFromEnv = Number.parseInt(process.env.SLA_TARGET_HOURS ?? '', 10);
-  const slaTargetHours =
-    Number.isFinite(slaFromEnv) && slaFromEnv > 0 ? slaFromEnv : 48;
-
-  await prisma.systemSettings.upsert({
-    where: { id: 'default' },
-    update: {
-      slaTargetHours,
-      workflowNoteOnReopen: true,
-      updatedById: null,
-    },
-    create: {
-      id: 'default',
-      slaTargetHours,
-    },
-  });
-
-  console.log(`  SLA objetivo: ${slaTargetHours}h`);
-
-  for (const state of DEFAULT_WORKFLOW_STATES) {
-    await prisma.workflowState.upsert({
-      where: { key: state.key },
-      update: state,
-      create: state,
-    });
-  }
-
-  console.log(`  ${DEFAULT_WORKFLOW_STATES.length} estados de workflow seed`);
 }
 
 main()
