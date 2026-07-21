@@ -6,6 +6,7 @@ import { WorkflowProvider } from '@/lib/workflow-context';
 import { ThemeProvider } from '@/lib/theme/theme-provider';
 import { ThemeScript } from '@/lib/theme/theme-script';
 import { GlassPageBackground } from '@/components/atoms/GlassPageBackground';
+import { ApiWakeProvider } from '@/lib/api-wake-context';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -30,9 +31,11 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         <ThemeProvider>
           <GlassPageBackground />
-          <AuthProvider>
-            <WorkflowProvider>{children}</WorkflowProvider>
-          </AuthProvider>
+          <ApiWakeProvider>
+            <AuthProvider>
+              <WorkflowProvider>{children}</WorkflowProvider>
+            </AuthProvider>
+          </ApiWakeProvider>
         </ThemeProvider>
       </body>
     </html>
