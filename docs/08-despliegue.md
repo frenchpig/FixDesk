@@ -61,7 +61,8 @@ mantener Session pooler en `DIRECT_URL`.
 
 ### Crear tablas y datos demo
 
-Desde `apps/api`, ejecuta las migraciones versionadas y el seed:
+Desde `apps/api`, puedes aplicar migraciones y el seed de forma manual (útil en
+setup local o la primera vez que creas la base):
 
 ```bash
 cd apps/api
@@ -75,7 +76,12 @@ DIRECT_URL="URL_SESSION_POOLER" \
 bun run db:seed
 ```
 
-El seed crea áreas, etiquetas, workflow, SLA y estas cuentas:
+En el contenedor de producción (Koyeb, Render, etc.) **no es obligatorio**
+ejecutar el seed a mano: `start:deploy` ya corre migraciones y resiembra la
+demo en cada arranque.
+
+El seed crea áreas, etiquetas, workflow, SLA, tickets de ejemplo y estas
+cuentas:
 
 | Rol | Usuario | Contraseña |
 |---|---|---|
@@ -94,8 +100,15 @@ El seed crea áreas, etiquetas, workflow, SLA y estas cuentas:
 7. Expón el puerto HTTP `3001`.
 8. Configura el health check `GET /api/v1/health`.
 
-El contenedor ejecuta `prisma migrate deploy` antes de arrancar la API. El seed
-se ejecuta una sola vez desde el equipo local, como se indicó anteriormente.
+El contenedor ejecuta `prisma migrate deploy` y luego `db:seed` antes de
+arrancar la API (`start:deploy`). Cada reinicio o spin-up **borra los datos
+previos y vuelve a generar la demo** (usuarios, tickets, historial,
+notificaciones, labels y workflow). Los cambios hechos durante una sesión se
+pierden al reiniciar el servicio.
+
+El seed tarda unos segundos (hash de contraseñas + tickets de ejemplo). Si el
+health check falla en el primer boot, aumenta el grace period / startup timeout
+del servicio (p. ej. 60–90 s).
 
 ### Variables de Koyeb
 
@@ -206,8 +219,10 @@ Al superar el límite configurado debe responder HTTP `429 Too Many Requests`.
 
 ## 7. Restaurar la demo
 
-El siguiente comando elimina todos los tickets, usuarios y configuración de la
-base indicada, vuelve a aplicar las migraciones y ejecuta el seed.
+En hosting, reiniciar el servicio de la API ya restaura la demo (via
+`start:deploy` → `db:seed`).
+
+Para un reset total local o forzado (incluye `migrate reset`):
 
 > ADVERTENCIA: es destructivo. Úsalo exclusivamente con la base descartable de
 > la demo; nunca con datos reales.
@@ -220,8 +235,8 @@ DIRECT_URL="URL_SESSION_POOLER" \
 bun run db:reset:demo
 ```
 
-El seed restaura nombres, roles, contraseñas, áreas, etiquetas, SLA y estados
-predeterminados aunque hayan sido modificados.
+El seed restaura nombres, roles, contraseñas, áreas, etiquetas, SLA, estados
+predeterminados y el set de tickets demo.
 
 ## 8. Límites y seguridad de la demo
 

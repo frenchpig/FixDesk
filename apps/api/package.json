@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "bun dist/src/main.js",
-    "start:deploy": "prisma migrate deploy && bun run start:prod",
+    "start:deploy": "prisma migrate deploy && bun run db:seed && bun run start:prod",
     "db:migrate": "prisma migrate dev",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

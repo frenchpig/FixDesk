@@ -537,7 +537,7 @@ function areaIdForCategory(
 }
 
 /**
- * Borra tickets/historial/notificaciones y recrea el dataset demo.
+ * Crea el dataset demo de tickets (asume DB ya reseteada por resetDemoDatabase).
  */
 export async function seedTickets(
   prisma: PrismaClient,
@@ -548,10 +548,6 @@ export async function seedTickets(
   },
 ): Promise<{ tickets: number; history: number; notifications: number }> {
   const { userByEmail, areaByName, labelByName } = deps;
-
-  await prisma.notification.deleteMany();
-  await prisma.ticketHistory.deleteMany();
-  await prisma.ticket.deleteMany();
 
   let historyCount = 0;
   let notificationCount = 0;

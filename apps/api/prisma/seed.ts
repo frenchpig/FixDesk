@@ -1,15 +1,19 @@
 // Responsabilidad: orquestar el seed demo de FixDesk
-// Usado por: bun prisma/seed.ts / prisma db seed
+// Usado por: bun prisma/seed.ts / prisma db seed / start:deploy
 // NO hace: lógica de dominio de la API
 
 import { PrismaClient } from '@prisma/client';
 import { seedCatalog } from './seed/catalog';
+import { resetDemoDatabase } from './seed/reset';
 import { seedTickets } from './seed/tickets';
 import { seedUsers } from './seed/users';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  console.log('Seed FixDesk — reset…');
+  await resetDemoDatabase(prisma);
+
   console.log('Seed FixDesk — catálogos…');
   const { areaByName, labelByName } = await seedCatalog(prisma);
 
